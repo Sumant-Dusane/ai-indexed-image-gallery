@@ -36,7 +36,7 @@ Update this line manually when a phase completes and is committed.
 ## Hard constraints — always apply, never override
 
 - Zero network calls after install. No HTTP client. No Firebase. No analytics. No Crashlytics.
-- Riverpod only for state management. No bloc, no cubit, no get_it.
+- Riverpod only that too using riverpod_generator for state management. No bloc, no cubit, no get_it.
 - Rust handles all ML inference. Dart never calls ONNX directly.
 - Dart passes raw pixel bytes to Rust. Rust never imports photo_manager.
 - Never block the UI thread. All inference and DB writes in background isolates or Rust threads.
