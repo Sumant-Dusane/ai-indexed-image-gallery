@@ -1,7 +1,6 @@
 # CLAUDE.md — Onboarding feature
 
-Read before any work in lib/features/onboarding/.
-UI spec: @docs/ui-spec.md (OnboardingScreen section)
+Before working here, read: `docs/ui-spec.md` (OnboardingScreen section).
 
 ---
 

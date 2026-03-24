@@ -1,7 +1,6 @@
 # CLAUDE.md — Rust inference layer
 
-Read before any work in rust/src/.
-Full model specs: @docs/models.md
+Before working here, read: `docs/models.md` (preprocessing steps, tensor shapes, reference code)
 
 ---
 
@@ -20,6 +19,11 @@ pub fn embed_face(pixels: Vec<u8>, width: u32, height: u32, bbox: BBox) -> Vec<f
 pub fn classify_emotion(pixels: Vec<u8>, width: u32, height: u32, bbox: BBox) -> EmotionResult
 pub fn compute_phash(pixels: Vec<u8>, width: u32, height: u32) -> String
 pub fn embed_text(query: String) -> Vec<f32>
+```
+
+Plus one init function:
+```rust
+pub fn init_models(model_dir: String)
 ```
 
 ## Shared types (exported to Dart via bridge)
@@ -46,10 +50,11 @@ pub struct EmotionResult {
 
 ## Session management
 
-- One `OnceLock<Session>` per model at module level
+- One `OnceLock<Session>` per model at module level (4 total: CLIP, FaceNet, YOLO, Emotion)
 - Sessions load on first call, never reload
 - ONNX model files accessed via path passed from Dart at app init
-  (use `init_models(model_dir: String)` as a setup function called once from Dart)
+  (`init_models(model_dir: String)` stores the path, sessions use it lazily)
+- See `docs/models.md` "Reference: ort crate inference pattern" for the exact code pattern
 
 ## Threading
 
@@ -61,9 +66,10 @@ pub struct EmotionResult {
 
 ```
 rust/src/
-  lib.rs                 ← bridge exports only, no logic
+  lib.rs                 ← bridge setup, module declarations
+  api.rs                 ← bridge exports (all 6 functions + init_models)
   inference/
-    mod.rs               ← init_models(), OnceLock sessions
+    mod.rs               ← init_models(), MODEL_DIR storage, OnceLock sessions
     clip.rs              ← embed_image(), embed_text(), preprocessing
     face.rs              ← embed_face(), preprocessing
     yolo.rs              ← detect_objects(), NMS, bbox scaling
@@ -73,3 +79,18 @@ rust/src/
     nms.rs               ← non-maximum suppression
     preprocess.rs        ← shared resize/normalize helpers
 ```
+
+## Dependencies — Cargo.toml
+
+```toml
+[dependencies]
+flutter_rust_bridge = "=2.0.0"
+ort = { version = "2.0", features = ["load-dynamic"] }
+image = "0.25"
+rayon = "1.10"
+once_cell = "1.19"
+ndarray = "0.16"
+tokenizers = ">=0.19"
+```
+
+Note: `tokenizers` is for BPE tokenization in `embed_text()`. See `docs/models.md` for details.

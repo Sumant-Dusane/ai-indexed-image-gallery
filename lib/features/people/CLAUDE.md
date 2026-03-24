@@ -1,8 +1,6 @@
 # CLAUDE.md — People feature
 
-Read before any work in lib/features/people/.
-Full clustering spec: @docs/clustering.md
-UI spec: @docs/ui-spec.md (PeopleScreen, ClusterDetailScreen, NameFaceSheet sections)
+Before working here, read: `docs/clustering.md` (DBSCAN spec) and `docs/ui-spec.md` (PeopleScreen, ClusterDetailScreen, NameFaceSheet sections).
 
 ---
 
@@ -22,5 +20,5 @@ lib/features/people/
 ## Do not implement here
 
 - DBSCAN logic → lives in `lib/services/face_cluster_service.dart`
-- DB queries → go through `lib/core/db/database.dart`
+- DB queries → go through providers and repositories
 - Embedding logic → lives in Rust layer

@@ -1,8 +1,6 @@
 # CLAUDE.md — Search feature
 
-Read before any work in lib/features/search/.
-Full spec: @docs/search.md
-UI spec: @docs/ui-spec.md (SearchScreen section)
+Before working here, read: `docs/search.md` (query pipeline) and `docs/ui-spec.md` (SearchScreen section).
 
 ---
 

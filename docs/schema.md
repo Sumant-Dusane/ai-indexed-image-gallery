@@ -70,52 +70,88 @@ CREATE INDEX idx_faces_emotion      ON faces(emotion);
 
 ---
 
-## Dart model classes — exact field names
+## Dart model classes — freezed, exact field names
 
 These map 1:1 to the schema. Do not add fields not listed here.
+All models use `@freezed`. Generate with `dart run build_runner build --delete-conflicting-outputs`.
 
 ```dart
-class PhotoAsset {
-  final String id;
-  final String? localPath;
-  final DateTime? takenAt;
-  final int? width;
-  final int? height;
-  final String mediaType;   // 'image' | 'video'
-  final String? phash;
-  final DateTime? indexedAt;
-  final int clipVersion;
+@freezed
+class PhotoAsset with _$PhotoAsset {
+  const factory PhotoAsset({
+    required String id,
+    String? localPath,
+    DateTime? takenAt,
+    int? width,
+    int? height,
+    required String mediaType,
+    String? phash,
+    DateTime? indexedAt,
+    @Default(1) int clipVersion,
+  }) = _PhotoAsset;
+
+  factory PhotoAsset.fromJson(Map<String, dynamic> json) =>
+      _$PhotoAssetFromJson(json);
 }
 
-class Detection {
-  final int? id;
-  final String photoId;
-  final String label;
-  final double confidence;
-  final double bboxX, bboxY, bboxW, bboxH;
+@freezed
+class Detection with _$Detection {
+  const factory Detection({
+    int? id,
+    required String photoId,
+    required String label,
+    required double confidence,
+    required double bboxX,
+    required double bboxY,
+    required double bboxW,
+    required double bboxH,
+  }) = _Detection;
+
+  factory Detection.fromJson(Map<String, dynamic> json) =>
+      _$DetectionFromJson(json);
 }
 
-class Face {
-  final int? id;
-  final String photoId;
-  final int? clusterId;
-  final String? emotion;
-  final double? emotionConf;
-  final double bboxX, bboxY, bboxW, bboxH;
+@freezed
+class Face with _$Face {
+  const factory Face({
+    int? id,
+    required String photoId,
+    int? clusterId,
+    String? emotion,
+    double? emotionConf,
+    required double bboxX,
+    required double bboxY,
+    required double bboxW,
+    required double bboxH,
+  }) = _Face;
+
+  factory Face.fromJson(Map<String, dynamic> json) => _$FaceFromJson(json);
 }
 
-class FaceCluster {
-  final int id;
-  final String? name;
-  final int? coverFaceId;
-  final int memberCount;
+@freezed
+class FaceCluster with _$FaceCluster {
+  const factory FaceCluster({
+    required int id,
+    String? name,
+    int? coverFaceId,
+    @Default(0) int memberCount,
+  }) = _FaceCluster;
+
+  factory FaceCluster.fromJson(Map<String, dynamic> json) =>
+      _$FaceClusterFromJson(json);
 }
 
-class SearchResult {
-  final String photoId;
-  final String localPath;
-  final DateTime? takenAt;
-  final double score;        // final re-ranked score, lower = better match
+@freezed
+class SearchResult with _$SearchResult {
+  const factory SearchResult({
+    required String photoId,
+    required String localPath,
+    DateTime? takenAt,
+    required double score,
+  }) = _SearchResult;
+
+  factory SearchResult.fromJson(Map<String, dynamic> json) =>
+      _$SearchResultFromJson(json);
 }
 ```
 

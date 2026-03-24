@@ -31,14 +31,24 @@ class IndexingService {
 ## IndexingProvider state shape
 
 ```dart
-class IndexingState {
-  final int total;        // total photos in library
-  final int indexed;      // photos with indexed_at != NULL
-  final bool isRunning;
-  final String? currentPhotoId;
+@freezed
+class IndexingState with _$IndexingState {
+  const factory IndexingState({
+    @Default(0) int total,
+    @Default(0) int indexed,
+    @Default(false) bool isRunning,
+    String? currentPhotoId,
+  }) = _IndexingState;
 }
 
-// Expose as StreamProvider<IndexingState>
+// Expose via riverpod_generator:
+@riverpod
+class IndexingNotifier extends _$IndexingNotifier {
+  @override
+  IndexingState build() => const IndexingState();
+
+  void updateState(IndexingState newState) => state = newState;
+}
 ```
 
 ---
@@ -153,6 +163,8 @@ void _onPhotoLibraryChange(ChangeNotifyEvent event) {
 
 ---
 
+<!-- VIDEO HANDLING — Deferred to future phase. Do not implement.
+
 ## Video handling
 
 - Applies only to assets where `media_type = 'video'`
@@ -161,3 +173,5 @@ void _onPhotoLibraryChange(ChangeNotifyEvent event) {
 - Store each indexed frame as a synthetic photo_id: `{asset_id}_f{frame_ms}`
 - Insert into photos table with same asset's taken_at
 - Max 60 frames per video regardless of length
+
+-->

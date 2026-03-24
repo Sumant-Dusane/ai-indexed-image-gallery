@@ -1,7 +1,6 @@
 # CLAUDE.md — Gallery feature
 
-Read before any work in lib/features/gallery/.
-UI spec: @docs/ui-spec.md (GalleryScreen, PhotoDetailScreen sections)
+Before working here, read: `docs/ui-spec.md` (GalleryScreen, PhotoDetailScreen sections).
 
 ---
 

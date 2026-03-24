@@ -26,11 +26,14 @@ class QueryService {
 Extract structured hints from the raw query string:
 
 ```dart
-class QueryIntent {
-  final DateTimeRange? dateRange;   // from date phrases
-  final int? clusterId;             // from person name match
-  final String? emotion;            // normalised emotion string
-  final String cleanQuery;          // query with hints stripped, for CLIP
+@freezed
+class QueryIntent with _$QueryIntent {
+  const factory QueryIntent({
+    DateTimeRange? dateRange,
+    int? clusterId,
+    String? emotion,
+    required String cleanQuery,
+  }) = _QueryIntent;
 }
 ```
 
@@ -158,18 +161,31 @@ Return `List<SearchResult>` capped at 50 items, sorted by finalScore descending.
 ## SearchProvider
 
 ```dart
+@freezed
+class SearchState with _$SearchState {
+  const factory SearchState({
+    @Default('') String query,
+    @Default([]) List<SearchResult> results,
+    @Default(false) bool isSearching,
+    @Default(false) bool indexingPartial,
+  }) = _SearchState;
+}
+
 // Debounce: 400ms
 // Minimum query length: 2 characters
-// While indexing is still running: prepend a note to results
+// While indexing is still running: set indexingPartial = true
 //   (don't block search — return partial results from what's indexed so far)
 
-final searchProvider = StateNotifierProvider<SearchNotifier, SearchState>(...);
+@riverpod
+class SearchNotifier extends _$SearchNotifier {
+  @override
+  SearchState build() => const SearchState();
 
-class SearchState {
-  final String query;
-  final List<SearchResult> results;
-  final bool isSearching;     // true while awaiting QueryService
-  final bool indexingPartial; // true if indexing still running
+  Future<void> search(String query) async {
+    state = state.copyWith(query: query, isSearching: true);
+    final results = await ref.read(queryServiceProvider).search(query);
+    state = state.copyWith(results: results, isSearching: false);
+  }
 }
 ```
 

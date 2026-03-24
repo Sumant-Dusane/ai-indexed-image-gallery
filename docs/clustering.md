@@ -80,13 +80,25 @@ Trigger full re-clustering when noise face count exceeds 50.
 ## FaceClusterProvider state
 
 ```dart
-class FaceClusterState {
-  final List<FaceCluster> clusters;   // sorted: unnamed first, then by memberCount desc
-  final bool isClustering;
+@freezed
+class FaceClusterState with _$FaceClusterState {
+  const factory FaceClusterState({
+    @Default([]) List<FaceCluster> clusters,
+    @Default(false) bool isClustering,
+  }) = _FaceClusterState;
 }
 
 // clusters with name == null come first (prompt user to name them)
 // clusters with name != null sorted by memberCount descending
+
+@riverpod
+class FaceClusterNotifier extends _$FaceClusterNotifier {
+  @override
+  FaceClusterState build() => const FaceClusterState();
+
+  Future<void> loadClusters() async { /* query DB, update state */ }
+  Future<void> runClustering() async { /* call service, update state */ }
+}
 ```
 
 ---
