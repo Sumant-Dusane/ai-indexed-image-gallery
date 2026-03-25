@@ -7,7 +7,7 @@ iOS 16+ and Android 10+.
 
 ## Current phase
 
-**Phase 1 — Skeleton**
+**Phase 2 — Rust Inference**
 _(Update this line when a phase is committed.)_
 
 ---

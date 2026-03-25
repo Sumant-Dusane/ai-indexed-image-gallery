@@ -424,10 +424,10 @@ I want to change [specific thing] from [old] to [new]. This contradicts docs/[fi
 
 ```
 ## Phase 1 — Skeleton
-- [ ] 1A: Flutter project + core layer → commit: ___
-- [ ] 1B: Database + repos + placeholders → commit: ___
-- [ ] 1C: Rust crate + bridge → commit: ___
-- [ ] Update CLAUDE.md phase line
+- [x] 1A: Flutter project + core layer → commit: ___
+- [x] 1B: Database + repos + placeholders → commit: ___
+- [x] 1C: Rust crate + bridge → commit: ___
+- [x] Update CLAUDE.md phase line
 
 ## Phase 2 — Rust Inference
 - [ ] 2A: CLIP (embed_image, embed_text) → commit: ___
