@@ -9,7 +9,7 @@ Before working here, read: `docs/schema.md` (tables, models, queries) and `docs/
 ```
 lib/core/
   db/
-    database.dart              ← SQLite singleton, migration runner, sqlite-vec loader
+    database.dart              ← SQLite singleton, migration runner, sqlite_vector loader
     schema.dart                ← all table/column name constants (strings only, no logic)
   models/                      ← @freezed data classes only, no business logic
     photo_asset.dart
@@ -32,7 +32,8 @@ lib/core/
 
 - Expose via a `@riverpod` async provider (singleton — use `keepAlive: true`)
 - Run all migrations in order on first open — never skip, never re-run
-- Load sqlite-vec extension immediately after opening DB, before creating vec0 tables
+- Open DB via `sqlite3` package; call `sqlite3.loadSqliteVectorExtension()` immediately after open
+- Call `vector_init()` for each embedding table (see `docs/schema.md`) before first use
 - All queries return plain Dart maps — model mapping happens in repositories, not here
 
 ## schema.dart rules

@@ -1,2 +1,48 @@
-.env
+# OS
 .DS_Store
+
+# Environment
+.env
+
+# Flutter/Dart
+.dart_tool/
+.packages
+build/
+*.iml
+.metadata
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Generated code
+*.freezed.dart
+*.g.dart
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Flutter/Generated.xcconfig
+ios/Flutter/app.flx
+ios/Flutter/app.zip
+ios/Flutter/engine/
+ios/Flutter/flutter_export_environment.sh
+ios/Runner/GeneratedPluginRegistrant.*
+
+# Android
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+android/GeneratedPluginRegistrant.java
+android/key.properties
+*.jks
+
+# Rust
+rust/target/

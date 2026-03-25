@@ -2,6 +2,10 @@
 
 Do not substitute any of these. Decisions are final.
 
+## Platforms
+
+iOS and Android only. No web, macOS, Linux, or Windows support.
+
 ## Flutter / Dart
 
 | Package | Version | Purpose |
@@ -18,8 +22,8 @@ Do not substitute any of these. Decisions are final.
 | `go_router` | ^14.0.0 | Navigation |
 | `photo_manager` | ^3.0.0 | Photo library access (iOS + Android) |
 | `workmanager` | ^0.5.0 | Background tasks (Android WorkManager + iOS BGTask) |
-| `sqflite` | ^2.3.0 | SQLite access |
-| `sqlite_vec` | latest | sqlite-vec extension (vector search) |
+| `sqlite3` | ^3.2.0 | SQLite access (lower-level FFI binding required by sqlite_vector) |
+| `sqlite_vector` | ^0.9.93 | Vector similarity search extension (replaces sqlite_vec) |
 | `flutter_rust_bridge` | v2 | Dart ↔ Rust FFI bridge |
 | `path_provider` | ^2.1.0 | DB file path |
 | `shared_preferences` | ^2.2.0 | Onboarding flag, simple key-value persistence |
@@ -38,8 +42,9 @@ Do not substitute any of these. Decisions are final.
 ## Storage
 
 - Single SQLite file at `getApplicationDocumentsDirectory()/gallery.db`
-- `sqlite_vec` Dart package handles extension loading — call its init before any vec0 table access
-- All vector search via `vec_distance_cosine()` SQL function
+- Open DB via `sqlite3` package; call `sqlite3.loadSqliteVectorExtension()` immediately after open
+- Call `vector_init(table, column, options)` for each embedding table before first use
+- Vector search via `vector_full_scan()` (exact) or `vector_quantize_scan()` (ANN) table-valued functions
 - No separate vector DB process
 
 ## Code generation
