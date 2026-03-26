@@ -21,24 +21,33 @@ GoRouter appRouter(Ref ref) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
         },
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(path: '/', builder: (_, __) => const GalleryScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-                path: '/search', builder: (_, __) => const SearchScreen()),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-                path: '/people', builder: (_, __) => const PeopleScreen()),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(path: '/', builder: (_, __) => const GalleryScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/search',
+                builder: (_, __) => const SearchScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/people',
+                builder: (_, __) => const PeopleScreen(),
+              ),
+            ],
+          ),
         ],
       ),
       GoRoute(
         path: '/photo/:photoId',
-        builder: (_, state) => PhotoDetailScreen(
-          photoId: state.pathParameters['photoId']!,
-        ),
+        builder: (_, state) =>
+            PhotoDetailScreen(photoId: state.pathParameters['photoId']!),
       ),
       GoRoute(
         path: '/people/:clusterId',

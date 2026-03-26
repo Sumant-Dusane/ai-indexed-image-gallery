@@ -70,7 +70,7 @@ fn wire__crate__api__classify_emotion_impl(
             let api_pixels = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_width = <u32>::sse_decode(&mut deserializer);
             let api_height = <u32>::sse_decode(&mut deserializer);
-            let api_bbox = <crate::shared::bbox::BBox>::sse_decode(&mut deserializer);
+            let api_bbox = <crate::shared::types::bbox::BBox>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
@@ -182,7 +182,7 @@ fn wire__crate__api__embed_face_impl(
             let api_pixels = <Vec<u8>>::sse_decode(&mut deserializer);
             let api_width = <u32>::sse_decode(&mut deserializer);
             let api_height = <u32>::sse_decode(&mut deserializer);
-            let api_bbox = <crate::shared::bbox::BBox>::sse_decode(&mut deserializer);
+            let api_bbox = <crate::shared::types::bbox::BBox>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
                 transform_result_sse::<_, ()>((move || {
@@ -311,14 +311,14 @@ impl SseDecode for String {
     }
 }
 
-impl SseDecode for crate::shared::bbox::BBox {
+impl SseDecode for crate::shared::types::bbox::BBox {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_x = <f32>::sse_decode(deserializer);
         let mut var_y = <f32>::sse_decode(deserializer);
         let mut var_w = <f32>::sse_decode(deserializer);
         let mut var_h = <f32>::sse_decode(deserializer);
-        return crate::shared::bbox::BBox {
+        return crate::shared::types::bbox::BBox {
             x: var_x,
             y: var_y,
             w: var_w,
@@ -327,13 +327,13 @@ impl SseDecode for crate::shared::bbox::BBox {
     }
 }
 
-impl SseDecode for crate::features::detection::types::Detection {
+impl SseDecode for crate::features::detection::detection_types::Detection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_label = <String>::sse_decode(deserializer);
         let mut var_confidence = <f32>::sse_decode(deserializer);
-        let mut var_bbox = <crate::shared::bbox::BBox>::sse_decode(deserializer);
-        return crate::features::detection::types::Detection {
+        let mut var_bbox = <crate::shared::types::bbox::BBox>::sse_decode(deserializer);
+        return crate::features::detection::detection_types::Detection {
             label: var_label,
             confidence: var_confidence,
             bbox: var_bbox,
@@ -341,12 +341,12 @@ impl SseDecode for crate::features::detection::types::Detection {
     }
 }
 
-impl SseDecode for crate::features::emotion::types::EmotionResult {
+impl SseDecode for crate::features::emotion::emotion_types::EmotionResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_label = <String>::sse_decode(deserializer);
         let mut var_confidence = <f32>::sse_decode(deserializer);
-        return crate::features::emotion::types::EmotionResult {
+        return crate::features::emotion::emotion_types::EmotionResult {
             label: var_label,
             confidence: var_confidence,
         };
@@ -360,15 +360,15 @@ impl SseDecode for f32 {
     }
 }
 
-impl SseDecode for Vec<crate::features::detection::types::Detection> {
+impl SseDecode for Vec<crate::features::detection::detection_types::Detection> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut len_ = <i32>::sse_decode(deserializer);
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
-            ans_.push(<crate::features::detection::types::Detection>::sse_decode(
-                deserializer,
-            ));
+            ans_.push(
+                <crate::features::detection::detection_types::Detection>::sse_decode(deserializer),
+            );
         }
         return ans_;
     }
@@ -466,7 +466,7 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::shared::bbox::BBox {
+impl flutter_rust_bridge::IntoDart for crate::shared::types::bbox::BBox {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.x.into_into_dart().into_dart(),
@@ -477,14 +477,19 @@ impl flutter_rust_bridge::IntoDart for crate::shared::bbox::BBox {
         .into_dart()
     }
 }
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::shared::bbox::BBox {}
-impl flutter_rust_bridge::IntoIntoDart<crate::shared::bbox::BBox> for crate::shared::bbox::BBox {
-    fn into_into_dart(self) -> crate::shared::bbox::BBox {
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
+    for crate::shared::types::bbox::BBox
+{
+}
+impl flutter_rust_bridge::IntoIntoDart<crate::shared::types::bbox::BBox>
+    for crate::shared::types::bbox::BBox
+{
+    fn into_into_dart(self) -> crate::shared::types::bbox::BBox {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::features::detection::types::Detection {
+impl flutter_rust_bridge::IntoDart for crate::features::detection::detection_types::Detection {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.label.into_into_dart().into_dart(),
@@ -495,18 +500,18 @@ impl flutter_rust_bridge::IntoDart for crate::features::detection::types::Detect
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::features::detection::types::Detection
+    for crate::features::detection::detection_types::Detection
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::features::detection::types::Detection>
-    for crate::features::detection::types::Detection
+impl flutter_rust_bridge::IntoIntoDart<crate::features::detection::detection_types::Detection>
+    for crate::features::detection::detection_types::Detection
 {
-    fn into_into_dart(self) -> crate::features::detection::types::Detection {
+    fn into_into_dart(self) -> crate::features::detection::detection_types::Detection {
         self
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::features::emotion::types::EmotionResult {
+impl flutter_rust_bridge::IntoDart for crate::features::emotion::emotion_types::EmotionResult {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.label.into_into_dart().into_dart(),
@@ -516,13 +521,13 @@ impl flutter_rust_bridge::IntoDart for crate::features::emotion::types::EmotionR
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive
-    for crate::features::emotion::types::EmotionResult
+    for crate::features::emotion::emotion_types::EmotionResult
 {
 }
-impl flutter_rust_bridge::IntoIntoDart<crate::features::emotion::types::EmotionResult>
-    for crate::features::emotion::types::EmotionResult
+impl flutter_rust_bridge::IntoIntoDart<crate::features::emotion::emotion_types::EmotionResult>
+    for crate::features::emotion::emotion_types::EmotionResult
 {
-    fn into_into_dart(self) -> crate::features::emotion::types::EmotionResult {
+    fn into_into_dart(self) -> crate::features::emotion::emotion_types::EmotionResult {
         self
     }
 }
@@ -534,7 +539,7 @@ impl SseEncode for String {
     }
 }
 
-impl SseEncode for crate::shared::bbox::BBox {
+impl SseEncode for crate::shared::types::bbox::BBox {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <f32>::sse_encode(self.x, serializer);
@@ -544,16 +549,16 @@ impl SseEncode for crate::shared::bbox::BBox {
     }
 }
 
-impl SseEncode for crate::features::detection::types::Detection {
+impl SseEncode for crate::features::detection::detection_types::Detection {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.label, serializer);
         <f32>::sse_encode(self.confidence, serializer);
-        <crate::shared::bbox::BBox>::sse_encode(self.bbox, serializer);
+        <crate::shared::types::bbox::BBox>::sse_encode(self.bbox, serializer);
     }
 }
 
-impl SseEncode for crate::features::emotion::types::EmotionResult {
+impl SseEncode for crate::features::emotion::emotion_types::EmotionResult {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.label, serializer);
@@ -568,12 +573,12 @@ impl SseEncode for f32 {
     }
 }
 
-impl SseEncode for Vec<crate::features::detection::types::Detection> {
+impl SseEncode for Vec<crate::features::detection::detection_types::Detection> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
-            <crate::features::detection::types::Detection>::sse_encode(item, serializer);
+            <crate::features::detection::detection_types::Detection>::sse_encode(item, serializer);
         }
     }
 }

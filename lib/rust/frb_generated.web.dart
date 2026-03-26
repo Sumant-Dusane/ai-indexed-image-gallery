@@ -9,11 +9,11 @@
 import 'api.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'features/detection/types.dart';
-import 'features/emotion/types.dart';
+import 'features/detection/detection_types.dart';
+import 'features/emotion/emotion_types.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
-import 'shared/bbox.dart';
+import 'shared/types/bbox.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLibApiImplPlatform({

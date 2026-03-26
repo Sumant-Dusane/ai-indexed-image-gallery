@@ -1,10 +1,10 @@
 import 'dart:typed_data';
 
-import 'package:ai_gallery/src/rust/api.dart' as rust_api;
-import 'package:ai_gallery/src/rust/features/detection/types.dart';
-import 'package:ai_gallery/src/rust/features/emotion/types.dart';
-import 'package:ai_gallery/src/rust/frb_generated.dart';
-import 'package:ai_gallery/src/rust/shared/bbox.dart';
+import 'package:ai_gallery/rust/api.dart' as rust_api;
+import 'package:ai_gallery/rust/features/detection/detection_types.dart';
+import 'package:ai_gallery/rust/features/emotion/emotion_types.dart';
+import 'package:ai_gallery/rust/frb_generated.dart';
+import 'package:ai_gallery/rust/shared/types/bbox.dart';
 
 /// Thin Dart wrapper over the Rust FFI bridge.
 ///

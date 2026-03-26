@@ -48,10 +48,9 @@ class AppDatabase {
 
     if (!applied.contains(1)) {
       _migration001(db);
-      db.execute(
-        'INSERT INTO _migrations(version, applied_at) VALUES(1, ?)',
-        [DateTime.now().millisecondsSinceEpoch ~/ 1000],
-      );
+      db.execute('INSERT INTO _migrations(version, applied_at) VALUES(1, ?)', [
+        DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      ]);
     }
   }
 
@@ -117,21 +116,13 @@ class AppDatabase {
       )
     ''');
 
-    db.execute(
-        'CREATE INDEX idx_photos_taken_at   ON photos(taken_at)');
-    db.execute(
-        'CREATE INDEX idx_photos_indexed_at ON photos(indexed_at)');
-    db.execute(
-        'CREATE INDEX idx_photos_phash      ON photos(phash)');
-    db.execute(
-        'CREATE INDEX idx_detections_label  ON detections(label)');
-    db.execute(
-        'CREATE INDEX idx_detections_photo  ON detections(photo_id)');
-    db.execute(
-        'CREATE INDEX idx_faces_cluster     ON faces(cluster_id)');
-    db.execute(
-        'CREATE INDEX idx_faces_photo       ON faces(photo_id)');
-    db.execute(
-        'CREATE INDEX idx_faces_emotion     ON faces(emotion)');
+    db.execute('CREATE INDEX idx_photos_taken_at   ON photos(taken_at)');
+    db.execute('CREATE INDEX idx_photos_indexed_at ON photos(indexed_at)');
+    db.execute('CREATE INDEX idx_photos_phash      ON photos(phash)');
+    db.execute('CREATE INDEX idx_detections_label  ON detections(label)');
+    db.execute('CREATE INDEX idx_detections_photo  ON detections(photo_id)');
+    db.execute('CREATE INDEX idx_faces_cluster     ON faces(cluster_id)');
+    db.execute('CREATE INDEX idx_faces_photo       ON faces(photo_id)');
+    db.execute('CREATE INDEX idx_faces_emotion     ON faces(emotion)');
   }
 }

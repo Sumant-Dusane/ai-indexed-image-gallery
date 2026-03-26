@@ -1,1 +1,3 @@
-// Phase 2: embed_face() inference implementation lives here.
+pub mod face_session;
+pub mod face_inference;
+pub mod face_preprocess;

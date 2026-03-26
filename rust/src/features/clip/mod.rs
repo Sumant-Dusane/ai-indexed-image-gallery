@@ -1,1 +1,3 @@
-// Phase 2: embed_image() and embed_text() inference implementation lives here.
+pub mod clip_session;
+pub mod clip_inference;
+pub mod clip_preprocess;

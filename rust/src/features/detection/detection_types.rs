@@ -1,4 +1,4 @@
-use crate::shared::bbox::BBox;
+use crate::shared::BBox;
 
 /// YOLO object detection result.
 pub struct Detection {

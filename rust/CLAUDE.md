@@ -66,18 +66,41 @@ pub struct EmotionResult {
 
 ```
 rust/src/
-  lib.rs                 ← bridge setup, module declarations
-  api.rs                 ← bridge exports (all 6 functions + init_models)
-  inference/
-    mod.rs               ← init_models(), MODEL_DIR storage, OnceLock sessions
-    clip.rs              ← embed_image(), embed_text(), preprocessing
-    face.rs              ← embed_face(), preprocessing
-    yolo.rs              ← detect_objects(), NMS, bbox scaling
-    emotion.rs           ← classify_emotion(), preprocessing
-  utils/
-    phash.rs             ← compute_phash()
-    nms.rs               ← non-maximum suppression
-    preprocess.rs        ← shared resize/normalize helpers
+  lib.rs                          ← bridge setup, module declarations
+  api.rs                          ← bridge exports (all 6 functions + init_models)
+  features/
+    mod.rs
+    clip/
+      mod.rs
+      clip_session.rs             ← OnceLock<Session> for MobileCLIP-S1
+      clip_inference.rs           ← embed_image(), embed_text()
+      clip_preprocess.rs          ← resize 224x224, normalize CHW, L2-normalize
+    face/
+      mod.rs
+      face_session.rs             ← OnceLock<Session> for MobileFaceNet
+      face_inference.rs           ← embed_face()
+      face_preprocess.rs          ← crop bbox (20% expand), resize 112x112, normalize CHW
+    detection/
+      mod.rs
+      detection_types.rs          ← Detection struct
+      detection_session.rs        ← OnceLock<Session> for YOLOv8-nano
+      detection_inference.rs      ← detect_objects(), bbox scaling
+      detection_preprocess.rs     ← letterbox resize 640x640, normalize CHW
+      detection_nms.rs            ← non-maximum suppression
+    emotion/
+      mod.rs
+      emotion_types.rs            ← EmotionResult struct
+      emotion_session.rs          ← OnceLock<Session> for EfficientNet-lite
+      emotion_inference.rs        ← classify_emotion()
+      emotion_preprocess.rs       ← crop bbox, resize 48x48, normalize CHW
+  shared/
+    mod.rs
+    types/
+      mod.rs
+      bbox.rs                     ← BBox struct (shared by detection, face, emotion)
+    utils/
+      mod.rs
+      phash.rs                    ← compute_phash()
 ```
 
 ## Dependencies — Cargo.toml

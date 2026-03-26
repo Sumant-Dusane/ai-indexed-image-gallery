@@ -181,7 +181,7 @@ flutter_rust_bridge_codegen generate
 
 From Dart, call via the generated API:
 ```dart
-import 'package:ai_gallery/src/rust/api.dart';
+import 'package:ai_gallery/rust/api.dart';
 
 final embedding = await embedImage(pixels: pixels, width: w, height: h);
 ```

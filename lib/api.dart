@@ -3,11 +3,11 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'features/detection/types.dart';
-import 'features/emotion/types.dart';
+import 'features/detection/detection_types.dart';
+import 'features/emotion/emotion_types.dart';
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'shared/bbox.dart';
+import 'shared/types/bbox.dart';
 
 /// Initialises all ONNX sessions from the given model directory.
 /// Must be called once before any inference function.
