@@ -1,20 +1,26 @@
-// Facade: declares all bridge functions exposed to Dart.
-// No type definitions here — types live in their feature or shared modules.
-// Inference implementations will live in crate::features::* (Phase 2+).
+// Facade: all bridge functions exposed to Dart.
+// Types live in their feature or shared modules.
 
 use crate::shared::BBox;
 use crate::features::detection::Detection;
 use crate::features::emotion::EmotionResult;
 
-/// Initialises all ONNX sessions from the given model directory.
-/// Must be called once before any inference function.
+/// Stores the model directory path so ONNX sessions can load lazily on first use.
+/// Must be called once at app startup before any inference function.
 pub fn init_models(model_dir: String) {
-    todo!()
+    crate::shared::MODEL_DIR
+        .set(model_dir)
+        .expect("init_models() called more than once");
 }
 
-/// Computes a 512-dim CLIP image embedding from raw RGB24 pixels.
+/// Computes a 512-dim L2-normalised CLIP image embedding from raw RGB24 pixels.
 pub fn embed_image(pixels: Vec<u8>, width: u32, height: u32) -> Vec<f32> {
-    todo!()
+    crate::features::clip::clip_inference::embed_image(pixels, width, height)
+}
+
+/// Computes a 512-dim L2-normalised CLIP text embedding for the given query string.
+pub fn embed_text(query: String) -> Vec<f32> {
+    crate::features::clip::clip_inference::embed_text(query)
 }
 
 /// Runs YOLOv8-nano object detection on raw RGB24 pixels.
@@ -34,10 +40,5 @@ pub fn classify_emotion(pixels: Vec<u8>, width: u32, height: u32, bbox: BBox) ->
 
 /// Computes a 64-bit perceptual hash for the given pixels, returned as a 16-char hex string.
 pub fn compute_phash(pixels: Vec<u8>, width: u32, height: u32) -> String {
-    todo!()
-}
-
-/// Computes a 512-dim CLIP text embedding for the given query string.
-pub fn embed_text(query: String) -> Vec<f32> {
     todo!()
 }
