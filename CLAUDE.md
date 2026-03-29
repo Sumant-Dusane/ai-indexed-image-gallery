@@ -7,7 +7,7 @@ iOS 16+ and Android 10+.
 
 ## Current phase
 
-**Phase 2 — Rust Inference**
+**Phase 3 — Indexing Service**
 _(Update this line when a phase is committed.)_
 
 ---

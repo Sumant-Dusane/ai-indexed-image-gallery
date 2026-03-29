@@ -430,10 +430,10 @@ I want to change [specific thing] from [old] to [new]. This contradicts docs/[fi
 - [x] Update CLAUDE.md phase line
 
 ## Phase 2 — Rust Inference
-- [ ] 2A: CLIP (embed_image, embed_text) → commit: ___
-- [ ] 2B: YOLO (detect_objects + NMS) → commit: ___
-- [ ] 2C: Face + emotion + pHash → commit: ___
-- [ ] Update CLAUDE.md phase line
+- [x] 2A: CLIP (embed_image, embed_text) → commit: ___
+- [x] 2B: YOLO (detect_objects + NMS) → commit: ___
+- [x] 2C: Face + emotion + pHash → commit: ___
+- [x] Update CLAUDE.md phase line
 
 ## Phase 3 — IndexingService`
 - [ ] 3A: Core pipeline → commit: ___
