@@ -435,7 +435,7 @@ I want to change [specific thing] from [old] to [new]. This contradicts docs/[fi
 - [ ] 2C: Face + emotion + pHash → commit: ___
 - [ ] Update CLAUDE.md phase line
 
-## Phase 3 — IndexingService
+## Phase 3 — IndexingService`
 - [ ] 3A: Core pipeline → commit: ___
 - [ ] 3B: Background tasks + gallery wiring → commit: ___
 - [ ] Update CLAUDE.md phase line

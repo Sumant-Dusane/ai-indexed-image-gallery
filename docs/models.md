@@ -8,14 +8,17 @@ Never reload a session — one session per model for app lifetime.
 
 ## Model inventory
 
-| File | Task | Input tensor | Output tensor | INT8 size |
-|---|---|---|---|---|
-| `mobileclip_s1_int8.onnx` | Image semantic embedding | `[1, 3, 224, 224]` float32 | `[1, 512]` float32 | ~6MB |
-| `mobilefacenet_int8.onnx` | Face embedding | `[1, 3, 112, 112]` float32 | `[1, 128]` float32 | ~4MB |
-| `yolov8n_int8.onnx` | Object detection | `[1, 3, 640, 640]` float32 | `[1, 84, 8400]` float32 | ~3MB |
-| `efficientnet_emotion_int8.onnx` | Emotion classification | `[1, 3, 48, 48]` float32 | `[1, 7]` float32 (softmax) | ~5MB |
+| File | Task | Input name | Input tensor | Output name | Output tensor | Expected size | Actual size |
+|---|---|---|---|---|---|---|---|
+| `mobileclip_s1_image_int8.onnx` | Image semantic embedding | `"image"` | `[1, 3, 224, 224]` float32 | `"embedding"` | `[1, 512]` float32 | ~6MB | 21MB |
+| `mobileclip_s1_text_int8.onnx` | Text query embedding | `"tokens"` | `[1, 77]` int32 | `"embedding"` | `[1, 512]` float32 | ~3MB | 60.9MB¹ |
+| `mobilefacenet_int8.onnx` | Face embedding | `"face"` | `[1, 3, 112, 112]` float32 | `"embedding"` | `[1, 128]` float32 | ~4MB | 1.1MB |
+| `yolov8n_int8.onnx` | Object detection | `"images"` | `[1, 3, 640, 640]` float32 | `"output0"` | `[1, 84, 8400]` float32 | ~3MB | 3.3MB |
+| `emotion_enet_b0_int8.onnx` | Emotion classification | `"face"` | `[1, 3, 224, 224]` float32 | `"logits"` | `[1, 8]` float32 | ~5MB | 4.0MB |
 
-Total: ~18MB
+Total: ~18MB expected / ~90MB actual
+
+¹ `quantize_dynamic` has limited effect on transformer attention layers — most weights remain float32.
 
 ---
 
@@ -56,28 +59,33 @@ Total: ~18MB
 7. Scale bbox coords back to original image dimensions
 8. Store bbox as normalised 0..1 values (divide by original w/h)
 
-### EfficientNet-lite (emotion)
-1. Crop same face region used for MobileFaceNet
-2. Resize to 48x48 (bilinear)
+### EfficientNet-B0 (emotion)
+1. Crop face region using YOLO bbox (expand 20%, clamp to image bounds)
+2. Resize crop to 224x224 (bilinear)
 3. Convert to RGB float32
 4. Normalize: `pixel = pixel / 255.0`
-5. Layout: CHW → `[1, 3, 48, 48]`
-6. Output: softmax over 7 classes — take argmax for label, keep score as confidence
+5. Layout: CHW → `[1, 3, 224, 224]`
+6. Output: `[1, 8]` logits → softmax → argmax → label (see class mapping below)
 
 ---
 
 ## Emotion class index mapping (fixed)
 
 ```rust
-const EMOTION_LABELS: [&str; 7] = [
-    "angry",     // 0
-    "disgust",   // 1
-    "fear",      // 2
-    "happy",     // 3
-    "neutral",   // 4
-    "sad",       // 5
-    "surprised", // 6
+const EMOTION_LABELS: [&str; 8] = [
+    "neutral",    // 0
+    "happy",      // 1
+    "sad",        // 2
+    "surprised",  // 3
+    "fear",       // 4
+    "disgust",    // 5
+    "angry",      // 6
+    "contempt",   // 7 — map to "neutral" if argmax == 7
 ];
+
+// In classify_emotion():
+let idx = argmax(&logits);
+let label = if idx == 7 { "neutral" } else { EMOTION_LABELS[idx] };
 ```
 
 ---
@@ -128,7 +136,7 @@ static CLIP_SESSION: OnceLock<Session> = OnceLock::new();
 /// Sessions are created lazily on first inference call.
 fn get_clip_session(model_dir: &str) -> &'static Session {
     CLIP_SESSION.get_or_init(|| {
-        let model_path = format!("{}/mobileclip_s1_int8.onnx", model_dir);
+        let model_path = format!("{}/mobileclip_s1_image_int8.onnx", model_dir);
         Session::builder()
             .expect("Failed to create session builder")
             .with_optimization_level(GraphOptimizationLevel::Level3)
@@ -144,10 +152,10 @@ fn run_clip_inference(session: &Session, preprocessed: Vec<f32>) -> Vec<f32> {
         .expect("Invalid input shape");
 
     let outputs = session
-        .run(inputs!["input" => input.view()].expect("Failed to create inputs"))
+        .run(inputs!["image" => input.view()].expect("Failed to create inputs"))
         .expect("Inference failed");
 
-    let output_tensor = outputs["output"]
+    let output_tensor = outputs["embedding"]
         .try_extract_tensor::<f32>()
         .expect("Failed to extract output tensor");
 
@@ -155,7 +163,14 @@ fn run_clip_inference(session: &Session, preprocessed: Vec<f32>) -> Vec<f32> {
 }
 ```
 
-**Important:** The exact input/output tensor names (`"input"`, `"output"`) depend on the ONNX model. Inspect model with `python -c "import onnx; m=onnx.load('model.onnx'); print([i.name for i in m.graph.input])"` to get the actual names.
+**Tensor names per model (use these exactly in `inputs![]` and `outputs[]`):**
+| Model file | Input name | Output name |
+|---|---|---|
+| `mobileclip_s1_image_int8.onnx` | `"image"` | `"embedding"` |
+| `mobileclip_s1_text_int8.onnx` | `"tokens"` | `"embedding"` |
+| `mobilefacenet_int8.onnx` | `"face"` | `"embedding"` |
+| `yolov8n_int8.onnx` | `"images"` | `"output0"` |
+| `emotion_enet_b0_int8.onnx` | `"face"` | `"logits"` |
 
 ---
 
