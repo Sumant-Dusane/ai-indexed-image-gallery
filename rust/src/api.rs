@@ -25,7 +25,7 @@ pub fn embed_text(query: String) -> Vec<f32> {
 
 /// Runs YOLOv8-nano object detection on raw RGB24 pixels.
 pub fn detect_objects(pixels: Vec<u8>, width: u32, height: u32) -> Vec<Detection> {
-    todo!()
+    crate::features::detection::detection_inference::detect_objects(pixels, width, height)
 }
 
 /// Computes a 128-dim MobileFaceNet face embedding using the given bounding box.
