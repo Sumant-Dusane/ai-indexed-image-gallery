@@ -92,7 +92,7 @@ rust/src/
       emotion_types.rs            ← EmotionResult struct
       emotion_session.rs          ← OnceLock<Session> for EfficientNet-lite
       emotion_inference.rs        ← classify_emotion()
-      emotion_preprocess.rs       ← crop bbox, resize 48x48, normalize CHW
+      emotion_preprocess.rs       ← crop bbox, resize 224x224, normalize CHW
   shared/
     mod.rs
     types/

@@ -9,12 +9,12 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'shared/types/bbox.dart';
 
-/// Initialises all ONNX sessions from the given model directory.
-/// Must be called once before any inference function.
+/// Stores the model directory path so ONNX sessions can load lazily on first use.
+/// Must be called once at app startup before any inference function.
 Future<void> initModels({required String modelDir}) =>
     RustLib.instance.api.crateApiInitModels(modelDir: modelDir);
 
-/// Computes a 512-dim CLIP image embedding from raw RGB24 pixels.
+/// Computes a 512-dim L2-normalised CLIP image embedding from raw RGB24 pixels.
 Future<Float32List> embedImage({
   required List<int> pixels,
   required int width,
@@ -24,6 +24,10 @@ Future<Float32List> embedImage({
   width: width,
   height: height,
 );
+
+/// Computes a 512-dim L2-normalised CLIP text embedding for the given query string.
+Future<Float32List> embedText({required String query}) =>
+    RustLib.instance.api.crateApiEmbedText(query: query);
 
 /// Runs YOLOv8-nano object detection on raw RGB24 pixels.
 Future<List<Detection>> detectObjects({
@@ -72,7 +76,3 @@ Future<String> computePhash({
   width: width,
   height: height,
 );
-
-/// Computes a 512-dim CLIP text embedding for the given query string.
-Future<Float32List> embedText({required String query}) =>
-    RustLib.instance.api.crateApiEmbedText(query: query);

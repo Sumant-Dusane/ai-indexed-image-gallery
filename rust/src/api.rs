@@ -30,15 +30,15 @@ pub fn detect_objects(pixels: Vec<u8>, width: u32, height: u32) -> Vec<Detection
 
 /// Computes a 128-dim MobileFaceNet face embedding using the given bounding box.
 pub fn embed_face(pixels: Vec<u8>, width: u32, height: u32, bbox: BBox) -> Vec<f32> {
-    todo!()
+    crate::features::face::face_inference::embed_face(pixels, width, height, bbox)
 }
 
 /// Classifies the emotion in the face region described by bbox.
 pub fn classify_emotion(pixels: Vec<u8>, width: u32, height: u32, bbox: BBox) -> EmotionResult {
-    todo!()
+    crate::features::emotion::emotion_inference::classify_emotion(pixels, width, height, bbox)
 }
 
 /// Computes a 64-bit perceptual hash for the given pixels, returned as a 16-char hex string.
 pub fn compute_phash(pixels: Vec<u8>, width: u32, height: u32) -> String {
-    todo!()
+    crate::shared::utils::phash::compute_phash(pixels, width, height)
 }

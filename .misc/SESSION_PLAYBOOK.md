@@ -165,7 +165,7 @@ CLIP and YOLO are committed. Build remaining models:
    - Exact preprocessing from docs/models.md MobileFaceNet section
    - L2-normalize 128-dim output
 2. rust/src/inference/emotion.rs — implement classify_emotion():
-   - Same crop, resize to 48x48
+   - Same crop, resize to 224x224
    - Exact preprocessing from docs/models.md EfficientNet-lite section
    - Softmax → argmax → emotion label from EMOTION_LABELS constant
 3. rust/src/utils/phash.rs — implement compute_phash():

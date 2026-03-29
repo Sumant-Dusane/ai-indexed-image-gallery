@@ -553,8 +553,8 @@ let label = if idx == 7 { "neutral" } else { EMOTION_LABELS[idx] };
 
 ## EMOTION MODEL INPUT SIZE CORRECTION
 
-Update docs/models.md — emotion model expects 224x224, not 48x48.
-The 48x48 figure was wrong (that is FER2013 dataset resolution).
+Update docs/models.md — emotion model expects 224x224, not 224x224.
+The 224x224 figure was wrong (that is FER2013 dataset resolution).
 EmotiEffLib EfficientNet-B0 expects 224x224 face crops.
 
 Preprocessing in Rust for emotion model:
