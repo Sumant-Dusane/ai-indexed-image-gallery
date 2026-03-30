@@ -163,6 +163,19 @@ class SearchResult with _$SearchResult {
 
 ---
 
+## DB Repositories
+
+All SQL lives in `lib/core/repositories/`. Handlers and services never write raw SQL directly.
+
+| File | Tables owned | Callers |
+|---|---|---|
+| `photos_db_repository.dart` | `photos` | `IndexingService`, `DedupHandler`, `MarkCompleteHandler` |
+| `detections_repository.dart` | `detections` | `InferenceHandler` |
+| `faces_repository.dart` | `faces` | `FaceHandler` |
+| `embeddings_repository.dart` | `photo_embeddings`, `face_embeddings` | `InferenceHandler`, `FaceHandler` |
+
+---
+
 ## Common queries — copy these, do not rewrite
 
 **Photos pending indexing (priority order):**
