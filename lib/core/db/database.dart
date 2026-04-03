@@ -11,11 +11,11 @@ class AppDatabase {
     final dir = await getApplicationDocumentsDirectory();
     final path = '${dir.path}/gallery.db';
 
-    final db = sqlite3.open(path);
-
-    // Load vector extension immediately after open — must happen before any
-    // vec0-dependent SQL.
+    // Load vector extension before opening the DB — ensureExtensionLoaded only
+    // applies to databases opened after this call.
     sqlite3.loadSqliteVectorExtension();
+
+    final db = sqlite3.open(path);
 
     _runMigrations(db);
 

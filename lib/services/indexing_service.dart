@@ -1,10 +1,15 @@
+import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 
 import 'package:ai_gallery/core/models/indexing_state.dart';
 import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
 import 'package:ai_gallery/services/image_pipeline.dart';
+import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:photo_manager/photo_manager.dart';
+import 'package:workmanager/workmanager.dart';
+
 
 class IndexingService {
   final PhotosDbRepository _photosDb;
@@ -16,6 +21,10 @@ class IndexingService {
   bool _paused = false;
   final ListQueue<String> _queue = ListQueue();
   IndexingState _state = const IndexingState();
+  Timer? _throttlePoller;
+
+  static const _bgTaskId = 'com.aigallery.indexing';
+  static const _throttleChannel = MethodChannel('com.aigallery/throttle');
 
   IndexingService({
     required PhotosDbRepository photosDb,
@@ -40,6 +49,8 @@ class IndexingService {
     if (_isRunning) return;
     _isRunning = true;
     _paused = false;
+    _throttlePoller?.cancel();
+    _throttlePoller = null;
 
     _queue
       ..clear()
@@ -47,6 +58,7 @@ class IndexingService {
 
     _refreshCounts();
     _updateState(_state.copyWith(isRunning: true));
+    await _registerBackgroundTask();
     await _drainQueue();
   }
 
@@ -73,8 +85,27 @@ class IndexingService {
     _refreshCounts();
   }
 
+  /// Register the photo library change observer.
+  /// Call after [syncPhotoLibrary] completes and permission is granted.
+  void registerChangeObserver() {
+    PhotoManager.addChangeCallback(_onPhotoLibraryChange);
+    PhotoManager.startChangeNotify();
+  }
+
+  // photo_manager 3.x fires a bare MethodCall('change') with no added/removed
+  // IDs in the payload. Re-sync the full library so new assets are inserted
+  // (INSERT OR IGNORE) and can be queued for indexing on the next startIndexing.
+  void _onPhotoLibraryChange(MethodCall call) {
+    syncPhotoLibrary();
+  }
+
   Future<void> _drainQueue() async {
     while (_queue.isNotEmpty && !_paused) {
+      if (await _shouldPauseForThrottle()) {
+        pause();
+        _startThrottlePoller();
+        return;
+      }
       final batch = <String>[];
       for (var i = 0; i < 4 && _queue.isNotEmpty; i++) {
         batch.add(_queue.removeFirst());
@@ -84,6 +115,66 @@ class IndexingService {
     if (!_paused) {
       _isRunning = false;
       _updateState(_state.copyWith(isRunning: false, currentPhotoId: null));
+    }
+  }
+
+  void _startThrottlePoller() {
+    _throttlePoller = Timer.periodic(const Duration(seconds: 60), (_) async {
+      if (_isRunning) {
+        _throttlePoller?.cancel();
+        return;
+      }
+      if (!await _shouldPauseForThrottle()) {
+        _throttlePoller?.cancel();
+        await startIndexing();
+      }
+    });
+  }
+
+  /// Returns true if indexing should pause due to low battery or high thermal load.
+  /// Reads battery level and (iOS-only) thermal state via the native
+  /// 'com.aigallery/throttle' method channel.
+  Future<bool> _shouldPauseForThrottle() async {
+    try {
+      final batteryLevel =
+          await _throttleChannel.invokeMethod<double>('getBatteryLevel') ?? 1.0;
+      if (batteryLevel < 0.20) return true;
+      if (Platform.isIOS) {
+        final thermal =
+            await _throttleChannel.invokeMethod<String>('getThermalState') ??
+                'nominal';
+        if (thermal == 'serious' || thermal == 'critical') return true;
+      }
+    } catch (e) {
+      _warn('throttle check failed: $e');
+    }
+    return false;
+  }
+
+  Future<void> _registerBackgroundTask() async {
+    // workmanager 0.5.x uses registerPeriodicTask on both platforms.
+    // iOS: maps to BGAppRefreshTask (BGProcessingTask requires workmanager ≥0.9).
+    // Android: PeriodicWorkRequest with 1-hour minimum interval.
+    if (Platform.isIOS) {
+      await Workmanager().registerPeriodicTask(
+        _bgTaskId,
+        _bgTaskId,
+        constraints: Constraints(
+          networkType: NetworkType.not_required,
+          requiresCharging: true,
+        ),
+      );
+    } else if (Platform.isAndroid) {
+      await Workmanager().registerPeriodicTask(
+        _bgTaskId,
+        'IndexingWorker',
+        frequency: const Duration(hours: 1),
+        constraints: Constraints(
+          networkType: NetworkType.not_required,
+          requiresCharging: true,
+          requiresDeviceIdle: true,
+        ),
+      );
     }
   }
 
