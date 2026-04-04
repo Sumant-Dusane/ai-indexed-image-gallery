@@ -23,12 +23,12 @@ class ImageIndexingPipeline {
     required FacesRepository faces,
     required EmbeddingsRepository embeddings,
   }) : _chain = _buildChain(
-          inference: inference,
-          photosDb: photosDb,
-          detections: detections,
-          faces: faces,
-          embeddings: embeddings,
-        );
+         inference: inference,
+         photosDb: photosDb,
+         detections: detections,
+         faces: faces,
+         embeddings: embeddings,
+       );
 
   Future<void> run({
     required String assetId,
@@ -36,12 +36,14 @@ class ImageIndexingPipeline {
     required int width,
     required int height,
   }) {
-    return _chain.handle(ImageProcessingContext(
-      assetId: assetId,
-      pixels: pixels,
-      width: width,
-      height: height,
-    ));
+    return _chain.handle(
+      ImageProcessingContext(
+        assetId: assetId,
+        pixels: pixels,
+        width: width,
+        height: height,
+      ),
+    );
   }
 
   static IndexingHandler _buildChain({
@@ -53,8 +55,20 @@ class ImageIndexingPipeline {
   }) {
     final head = DedupHandler(photos: photosDb, inference: inference);
     head
-        .setNext(InferenceHandler(inference: inference, detections: detections, embeddings: embeddings))
-        .setNext(FaceHandler(inference: inference, faces: faces, embeddings: embeddings))
+        .setNext(
+          InferenceHandler(
+            inference: inference,
+            detections: detections,
+            embeddings: embeddings,
+          ),
+        )
+        .setNext(
+          FaceHandler(
+            inference: inference,
+            faces: faces,
+            embeddings: embeddings,
+          ),
+        )
         .setNext(MarkCompleteHandler(photos: photosDb));
     return head;
   }

@@ -8,9 +8,9 @@ use crate::features::emotion::EmotionResult;
 /// Stores the model directory path so ONNX sessions can load lazily on first use.
 /// Must be called once at app startup before any inference function.
 pub fn init_models(model_dir: String) {
-    crate::shared::MODEL_DIR
-        .set(model_dir)
-        .expect("init_models() called more than once");
+    // Silently ignore if already initialised (e.g. hot-reload, Riverpod async
+    // re-run). The OnceLock already holds the correct path.
+    let _ = crate::shared::MODEL_DIR.set(model_dir);
 }
 
 /// Computes a 512-dim L2-normalised CLIP image embedding from raw RGB24 pixels.

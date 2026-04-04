@@ -52,27 +52,28 @@ class PhotosDbRepository {
         0;
     final indexed =
         _db
-            .select(
-              'SELECT COUNT(*) AS c FROM ${Tables.photos} WHERE indexed_at IS NOT NULL',
-            )
-            .first['c'] as int? ??
+                .select(
+                  'SELECT COUNT(*) AS c FROM ${Tables.photos} WHERE indexed_at IS NOT NULL',
+                )
+                .first['c']
+            as int? ??
         0;
     return (total: total, indexed: indexed);
   }
 
   bool hasDuplicate(String phash) {
-    return _db
-        .select(
-          'SELECT id FROM ${Tables.photos} '
-          'WHERE phash = ? AND indexed_at IS NOT NULL',
-          [phash],
-        )
-        .isNotEmpty;
+    return _db.select(
+      'SELECT id FROM ${Tables.photos} '
+      'WHERE phash = ? AND indexed_at IS NOT NULL',
+      [phash],
+    ).isNotEmpty;
   }
 
-  void markDuplicate(String assetId, String phash) => _markComplete(assetId, phash);
+  void markDuplicate(String assetId, String phash) =>
+      _markComplete(assetId, phash);
 
-  void markComplete(String assetId, String phash) => _markComplete(assetId, phash);
+  void markComplete(String assetId, String phash) =>
+      _markComplete(assetId, phash);
 
   void _markComplete(String assetId, String phash) {
     _db.execute(

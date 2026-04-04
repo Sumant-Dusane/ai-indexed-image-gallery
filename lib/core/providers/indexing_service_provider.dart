@@ -15,8 +15,11 @@ part 'indexing_service_provider.g.dart';
 
 @Riverpod(keepAlive: true)
 Future<IndexingService> indexingService(Ref ref) async {
-  final db = await ref.watch(databaseProvider.future);
-  final inference = await ref.watch(inferenceRepositoryProvider.future);
+  // ref.read (not ref.watch) — both are keepAlive singletons that never
+  // change. ref.watch would set up subscriptions that trigger spurious
+  // async re-runs of this body, causing init_models() to be called twice.
+  final db = await ref.read(databaseProvider.future);
+  final inference = await ref.read(inferenceRepositoryProvider.future);
 
   final photosDb = PhotosDbRepository(db);
   final detections = DetectionsRepository(db);

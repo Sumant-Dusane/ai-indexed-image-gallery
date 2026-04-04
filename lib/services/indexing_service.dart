@@ -10,7 +10,6 @@ import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:photo_manager/photo_manager.dart';
 import 'package:workmanager/workmanager.dart';
 
-
 class IndexingService {
   final PhotosDbRepository _photosDb;
   final ImageIndexingPipeline _pipeline;
@@ -25,16 +24,17 @@ class IndexingService {
 
   static const _bgTaskId = 'com.aigallery.indexing';
   static const _throttleChannel = MethodChannel('com.aigallery/throttle');
+  static const _bgChannel = MethodChannel('com.aigallery/background');
 
   IndexingService({
     required PhotosDbRepository photosDb,
     required ImageIndexingPipeline pipeline,
     required PhotoRepository photos,
     required void Function(IndexingState) onStateUpdate,
-  })  : _photosDb = photosDb,
-        _pipeline = pipeline,
-        _photos = photos,
-        _onStateUpdate = onStateUpdate;
+  }) : _photosDb = photosDb,
+       _pipeline = pipeline,
+       _photos = photos,
+       _onStateUpdate = onStateUpdate;
 
   Future<void> syncPhotoLibrary() async {
     final assets = await _photos.listAllAssets();
@@ -142,7 +142,7 @@ class IndexingService {
       if (Platform.isIOS) {
         final thermal =
             await _throttleChannel.invokeMethod<String>('getThermalState') ??
-                'nominal';
+            'nominal';
         if (thermal == 'serious' || thermal == 'critical') return true;
       }
     } catch (e) {
@@ -152,18 +152,10 @@ class IndexingService {
   }
 
   Future<void> _registerBackgroundTask() async {
-    // workmanager 0.5.x uses registerPeriodicTask on both platforms.
-    // iOS: maps to BGAppRefreshTask (BGProcessingTask requires workmanager ≥0.9).
-    // Android: PeriodicWorkRequest with 1-hour minimum interval.
     if (Platform.isIOS) {
-      await Workmanager().registerPeriodicTask(
-        _bgTaskId,
-        _bgTaskId,
-        constraints: Constraints(
-          networkType: NetworkType.not_required,
-          requiresCharging: true,
-        ),
-      );
+      // iOS uses a native BGProcessingTask registered in AppDelegate.
+      // Dart just triggers scheduling via a platform channel.
+      await _bgChannel.invokeMethod<void>('scheduleIndexingTask');
     } else if (Platform.isAndroid) {
       await Workmanager().registerPeriodicTask(
         _bgTaskId,
@@ -182,10 +174,16 @@ class IndexingService {
     _updateState(_state.copyWith(currentPhotoId: assetId));
     try {
       final asset = await AssetEntity.fromId(assetId);
-      if (asset == null) { _warn('asset $assetId not found'); return; }
+      if (asset == null) {
+        _warn('asset $assetId not found');
+        return;
+      }
 
       final pixels = await _photos.getFullResBytes(asset);
-      if (pixels == null) { _warn('no pixels for $assetId'); return; }
+      if (pixels == null) {
+        _warn('no pixels for $assetId');
+        return;
+      }
 
       await _pipeline.run(
         assetId: assetId,
@@ -212,5 +210,6 @@ class IndexingService {
     _onStateUpdate(s);
   }
 
-  static void _warn(String msg) => print('[IndexingService] WARNING: $msg'); // ignore: avoid_print
+  static void _warn(String msg) =>
+      print('[IndexingService] WARNING: $msg'); // ignore: avoid_print
 }

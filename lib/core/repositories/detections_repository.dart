@@ -13,7 +13,15 @@ class DetectionsRepository {
         'INSERT INTO ${Tables.detections}'
         '(photo_id, label, confidence, bbox_x, bbox_y, bbox_w, bbox_h) '
         'VALUES(?,?,?,?,?,?,?)',
-        [photoId, d.label, d.confidence, d.bbox.x, d.bbox.y, d.bbox.w, d.bbox.h],
+        [
+          photoId,
+          d.label,
+          d.confidence,
+          d.bbox.x,
+          d.bbox.y,
+          d.bbox.w,
+          d.bbox.h,
+        ],
       );
     }
   }

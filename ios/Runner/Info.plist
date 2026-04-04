@@ -66,6 +66,10 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.aigallery.indexing</string>
+	</array>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>In order to access your photo library</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>

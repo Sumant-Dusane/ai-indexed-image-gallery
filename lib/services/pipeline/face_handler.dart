@@ -15,14 +15,16 @@ class FaceHandler extends IndexingHandler {
     required InferenceRepository inference,
     required FacesRepository faces,
     required EmbeddingsRepository embeddings,
-  })  : _inference = inference,
-        _faces = faces,
-        _embeddings = embeddings;
+  }) : _inference = inference,
+       _faces = faces,
+       _embeddings = embeddings;
 
   @override
   Future<void> handle(ImageProcessingContext ctx) async {
     if (ctx.personBboxes.isNotEmpty) {
-      await Future.wait(ctx.personBboxes.map((bbox) => _processFace(ctx, bbox)));
+      await Future.wait(
+        ctx.personBboxes.map((bbox) => _processFace(ctx, bbox)),
+      );
     }
     await forward(ctx);
   }
@@ -36,7 +38,11 @@ class FaceHandler extends IndexingHandler {
     ]);
   }
 
-  Future<void> _embedFace(ImageProcessingContext ctx, BBox bbox, int faceId) async {
+  Future<void> _embedFace(
+    ImageProcessingContext ctx,
+    BBox bbox,
+    int faceId,
+  ) async {
     final emb = await _inference.embedFace(
       pixels: ctx.pixels,
       width: ctx.width,
@@ -46,7 +52,11 @@ class FaceHandler extends IndexingHandler {
     _embeddings.saveFaceEmbedding(faceId, emb);
   }
 
-  Future<void> _classifyEmotion(ImageProcessingContext ctx, BBox bbox, int faceId) async {
+  Future<void> _classifyEmotion(
+    ImageProcessingContext ctx,
+    BBox bbox,
+    int faceId,
+  ) async {
     final result = await _inference.classifyEmotion(
       pixels: ctx.pixels,
       width: ctx.width,

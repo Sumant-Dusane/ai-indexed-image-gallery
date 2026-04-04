@@ -8,9 +8,11 @@ class DedupHandler extends IndexingHandler {
   final PhotosDbRepository _photos;
   final InferenceRepository _inference;
 
-  DedupHandler({required PhotosDbRepository photos, required InferenceRepository inference})
-      : _photos = photos,
-        _inference = inference;
+  DedupHandler({
+    required PhotosDbRepository photos,
+    required InferenceRepository inference,
+  }) : _photos = photos,
+       _inference = inference;
 
   @override
   Future<void> handle(ImageProcessingContext ctx) async {
