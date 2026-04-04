@@ -57,7 +57,7 @@ void main() async {
 }
 ```
 
-No other initialization in main. DB init, permission checks, and photo sync happen lazily via providers or at navigation time.
+No other initialization in main. DB init and permission checks happen lazily via providers. Photo sync (`syncPhotoLibrary` + `startIndexing`) is triggered at navigation time: from the onboarding screen on first launch, and from the gallery screen on every subsequent launch. See `docs/pipeline.md` — "Startup trigger" section.
 
 ---
 

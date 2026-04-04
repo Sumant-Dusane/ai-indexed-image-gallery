@@ -21,8 +21,6 @@ Future<Map<String, List<PhotoAsset>>> gallery(Ref ref) async {
     'ORDER BY ${Columns.takenAt} DESC',
   );
 
-  print(rows);
-
   final grouped = <String, List<PhotoAsset>>{};
   for (final row in rows) {
     final asset = _rowToPhotoAsset(row);

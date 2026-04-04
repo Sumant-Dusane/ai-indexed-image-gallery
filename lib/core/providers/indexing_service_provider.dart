@@ -35,6 +35,7 @@ Future<IndexingService> indexingService(Ref ref) async {
     photosDb: photosDb,
     pipeline: pipeline,
     photos: PhotoRepository(),
-    onStateUpdate: (s) => ref.read(indexingNotifierProvider.notifier).updateState(s),
+    onStateUpdate: (s) =>
+        ref.read(indexingNotifierProvider.notifier).updateState(s),
   );
 }

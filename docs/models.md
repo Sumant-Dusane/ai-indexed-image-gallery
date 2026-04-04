@@ -1,8 +1,15 @@
 # docs/models.md — ML models
 
-All models live in `assets/models/`. All INT8 quantized. ONNX opset 17.
+All models are bundled in `assets/models/`. All INT8 quantized. ONNX opset 17.
 Load lazily on first call. Cache as static `OnceLock<Session>` in Rust.
 Never reload a session — one session per model for app lifetime.
+
+## Model extraction (first launch)
+
+Flutter's asset bundle is not a real filesystem — Rust cannot load ONNX files directly from it.
+`inferenceRepositoryProvider` copies each model file from `assets/models/` to
+`getApplicationDocumentsDirectory()/models/` on first install using `rootBundle.load()`.
+Subsequent launches skip the copy (`existsSync()` guard). Rust receives the documents path.
 
 ---
 

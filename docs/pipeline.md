@@ -53,6 +53,46 @@ class IndexingNotifier extends _$IndexingNotifier {
 
 ---
 
+## Startup trigger — where and when to call sync + start
+
+`syncPhotoLibrary()` and `startIndexing()` must be called from **two places**, covering both launch paths:
+
+### First launch — Onboarding screen (`lib/features/onboarding/onboarding_screen.dart`)
+
+When `onboarding_complete` is false the router redirects to `/onboarding`.
+The onboarding screen is responsible for triggering indexing so its progress bar and phase checkmarks have live data to display.
+
+```dart
+// In onboarding screen's initState / ref.listen on first build:
+ref.read(indexingProvider.notifier).syncAndStart();
+// Then watch indexingProvider for progress bar updates.
+```
+
+### Subsequent launches — Gallery screen (`lib/features/gallery/gallery_screen.dart`)
+
+When `onboarding_complete` is true the router goes straight to `/gallery`.
+The gallery screen must trigger sync on every launch to catch photos added while the app was closed (the change observer only fires while the app is running).
+
+```dart
+// In gallery screen's initState / useEffect-equivalent:
+ref.read(indexingProvider.notifier).syncAndStart();
+```
+
+Both calls are safe to make unconditionally:
+- `syncPhotoLibrary()` uses INSERT OR IGNORE — re-running it never duplicates rows
+- `startIndexing()` has an `isRunning` guard — calling it while already running is a no-op
+
+`syncAndStart()` is a convenience method on `IndexingNotifier` that calls both in sequence:
+
+```dart
+Future<void> syncAndStart() async {
+  await _service.syncPhotoLibrary();
+  await _service.startIndexing();
+}
+```
+
+---
+
 ## Queue priority order (first-install batch)
 
 Build the queue once at `startIndexing()` from photos WHERE indexed_at IS NULL:

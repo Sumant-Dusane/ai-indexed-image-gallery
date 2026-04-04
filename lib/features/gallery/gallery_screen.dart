@@ -2,15 +2,31 @@ import 'dart:typed_data';
 
 import 'package:ai_gallery/core/models/photo_asset.dart';
 import 'package:ai_gallery/core/providers/gallery_provider.dart';
+import 'package:ai_gallery/core/providers/indexing_notifier_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-class GalleryScreen extends ConsumerWidget {
+class GalleryScreen extends ConsumerStatefulWidget {
   const GalleryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GalleryScreen> createState() => _GalleryScreenState();
+}
+
+class _GalleryScreenState extends ConsumerState<GalleryScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Sync + index on every launch to catch photos added while the app was closed.
+    // On first launch this is a no-op until onboarding triggers it (Phase 6).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(indexingNotifierProvider.notifier).syncAndStart();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final galleryAsync = ref.watch(galleryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Gallery')),
@@ -39,10 +55,7 @@ class _GalleryGrid extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 16, 12, 8),
-              child: Text(
-                month,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              child: Text(month, style: Theme.of(context).textTheme.titleSmall),
             ),
           ),
           SliverGrid.builder(
