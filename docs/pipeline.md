@@ -55,41 +55,42 @@ class IndexingNotifier extends _$IndexingNotifier {
 
 ## Startup trigger — where and when to call sync + start
 
-`syncPhotoLibrary()` and `startIndexing()` must be called from **two places**, covering both launch paths:
+`syncAndStart()` is triggered from a single central location: **`appRouterProvider`** (`lib/router/app_router.dart`).
 
-### First launch — Onboarding screen (`lib/features/onboarding/onboarding_screen.dart`)
-
-When `onboarding_complete` is false the router redirects to `/onboarding`.
-The onboarding screen is responsible for triggering indexing so its progress bar and phase checkmarks have live data to display.
+A `ref.listen` on `photoPermissionProvider` fires `syncAndStart()` the moment permission resolves to granted, on every app launch. This covers both first launch and subsequent launches without screen-level coordination.
 
 ```dart
-// In onboarding screen's initState / ref.listen on first build:
-ref.read(indexingProvider.notifier).syncAndStart();
-// Then watch indexingProvider for progress bar updates.
+// In appRouterProvider, alongside the existing permission listener:
+ref.listen(photoPermissionProvider, (_, next) {
+  if (!next.hasValue) return;
+  if (next.value!.isGranted) {
+    ref.read(indexingNotifierProvider.notifier).syncAndStart();
+  }
+});
 ```
 
-### Subsequent launches — Gallery screen (`lib/features/gallery/gallery_screen.dart`)
+`syncAndStart()` runs in the background — **the gallery grid does not wait for it**.
+`galleryProvider` reads directly from `photo_manager` so photos appear immediately on launch.
+The DB is populated by `syncPhotoLibrary()` in the background for AI search (Phase 4+).
 
-When `onboarding_complete` is true the router goes straight to `/gallery`.
-The gallery screen must trigger sync on every launch to catch photos added while the app was closed (the change observer only fires while the app is running).
-
-```dart
-// In gallery screen's initState / useEffect-equivalent:
-ref.read(indexingProvider.notifier).syncAndStart();
-```
-
-Both calls are safe to make unconditionally:
-- `syncPhotoLibrary()` uses INSERT OR IGNORE — re-running it never duplicates rows
-- `startIndexing()` has an `isRunning` guard — calling it while already running is a no-op
-
-`syncAndStart()` is a convenience method on `IndexingNotifier` that calls both in sequence:
+`syncAndStart()` is a method on `IndexingNotifier` that:
+1. Awaits `photoPermissionProvider` to ensure `requestPermissionExtend()` has completed before listing assets
+2. Calls `syncPhotoLibrary()`
+3. Calls `startIndexing()` only if `state.total > 0` (skips if the library is empty)
 
 ```dart
 Future<void> syncAndStart() async {
-  await _service.syncPhotoLibrary();
-  await _service.startIndexing();
+  final permission = await ref.read(photoPermissionProvider.future);
+  if (!permission.isGranted) return;
+  final service = await ref.read(indexingServiceProvider.future);
+  await service.syncPhotoLibrary();
+  if (state.total > 0) await service.startIndexing();
 }
 ```
+
+Both underlying calls are safe to repeat:
+- `syncPhotoLibrary()` uses INSERT OR IGNORE — re-running never duplicates rows
+- `startIndexing()` has an `isRunning` guard — calling it while already running is a no-op
 
 ---
 

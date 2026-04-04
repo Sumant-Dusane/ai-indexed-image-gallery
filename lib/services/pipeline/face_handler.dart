@@ -1,3 +1,4 @@
+import 'package:ai_gallery/core/debug/app_logger.dart';
 import 'package:ai_gallery/core/repositories/embeddings_repository.dart';
 import 'package:ai_gallery/core/repositories/faces_repository.dart';
 import 'package:ai_gallery/core/repositories/inference_repository.dart';
@@ -21,11 +22,15 @@ class FaceHandler extends IndexingHandler {
 
   @override
   Future<void> handle(ImageProcessingContext ctx) async {
-    if (ctx.personBboxes.isNotEmpty) {
-      await Future.wait(
-        ctx.personBboxes.map((bbox) => _processFace(ctx, bbox)),
-      );
+    if (ctx.personBboxes.isEmpty) {
+      await forward(ctx);
+      return;
     }
+    AppLogger.faces(
+      '[face] processing ${ctx.personBboxes.length} face(s) for ${ctx.assetId}',
+    );
+    await Future.wait(ctx.personBboxes.map((bbox) => _processFace(ctx, bbox)));
+    AppLogger.faces('[face] done for ${ctx.assetId}');
     await forward(ctx);
   }
 

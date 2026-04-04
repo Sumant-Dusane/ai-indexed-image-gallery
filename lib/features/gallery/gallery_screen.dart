@@ -1,32 +1,15 @@
 import 'dart:typed_data';
 
-import 'package:ai_gallery/core/models/photo_asset.dart';
 import 'package:ai_gallery/core/providers/gallery_provider.dart';
-import 'package:ai_gallery/core/providers/indexing_notifier_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
 
-class GalleryScreen extends ConsumerStatefulWidget {
+class GalleryScreen extends ConsumerWidget {
   const GalleryScreen({super.key});
 
   @override
-  ConsumerState<GalleryScreen> createState() => _GalleryScreenState();
-}
-
-class _GalleryScreenState extends ConsumerState<GalleryScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Sync + index on every launch to catch photos added while the app was closed.
-    // On first launch this is a no-op until onboarding triggers it (Phase 6).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(indexingNotifierProvider.notifier).syncAndStart();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final galleryAsync = ref.watch(galleryProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Gallery')),
@@ -44,7 +27,7 @@ class _GalleryScreenState extends ConsumerState<GalleryScreen> {
 class _GalleryGrid extends StatelessWidget {
   const _GalleryGrid({required this.grouped});
 
-  final Map<String, List<PhotoAsset>> grouped;
+  final Map<String, List<AssetEntity>> grouped;
 
   @override
   Widget build(BuildContext context) {
@@ -66,8 +49,8 @@ class _GalleryGrid extends StatelessWidget {
             ),
             itemCount: grouped[month]!.length,
             itemBuilder: (context, index) {
-              final photo = grouped[month]![index];
-              return _ThumbnailCell(photo: photo);
+              final asset = grouped[month]![index];
+              return _ThumbnailCell(asset: asset);
             },
           ),
         ],
@@ -77,20 +60,14 @@ class _GalleryGrid extends StatelessWidget {
 }
 
 class _ThumbnailCell extends StatelessWidget {
-  const _ThumbnailCell({required this.photo});
+  const _ThumbnailCell({required this.asset});
 
-  final PhotoAsset photo;
+  final AssetEntity asset;
 
   @override
   Widget build(BuildContext context) {
-    final entity = AssetEntity(
-      id: photo.id,
-      typeInt: photo.mediaType == 'video' ? 2 : 1,
-      width: photo.width ?? 0,
-      height: photo.height ?? 0,
-    );
     return FutureBuilder<Uint8List?>(
-      future: entity.thumbnailDataWithSize(const ThumbnailSize(200, 200)),
+      future: asset.thumbnailDataWithSize(const ThumbnailSize(200, 200)),
       builder: (context, snapshot) {
         final data = snapshot.data;
         if (data != null) {

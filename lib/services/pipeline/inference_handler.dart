@@ -1,3 +1,4 @@
+import 'package:ai_gallery/core/debug/app_logger.dart';
 import 'package:ai_gallery/core/repositories/detections_repository.dart';
 import 'package:ai_gallery/core/repositories/embeddings_repository.dart';
 import 'package:ai_gallery/core/repositories/inference_repository.dart';
@@ -21,6 +22,7 @@ class InferenceHandler extends IndexingHandler {
 
   @override
   Future<void> handle(ImageProcessingContext ctx) async {
+    AppLogger.pipeline('[inference] running CLIP + YOLO for ${ctx.assetId}');
     List<BBox>? personBboxes;
 
     await Future.wait([
@@ -29,6 +31,9 @@ class InferenceHandler extends IndexingHandler {
     ]);
 
     ctx.personBboxes = personBboxes ?? const [];
+    AppLogger.pipeline(
+      '[inference] done for ${ctx.assetId} — ${ctx.personBboxes.length} person(s) detected',
+    );
     await forward(ctx);
   }
 

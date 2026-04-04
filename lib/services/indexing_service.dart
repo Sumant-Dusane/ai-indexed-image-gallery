@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
 
+import 'package:ai_gallery/core/debug/app_logger.dart';
 import 'package:ai_gallery/core/models/indexing_state.dart';
 import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
@@ -37,12 +38,15 @@ class IndexingService {
        _onStateUpdate = onStateUpdate;
 
   Future<void> syncPhotoLibrary() async {
+    AppLogger.indexing('syncPhotoLibrary started');
     final assets = await _photos.listAllAssets();
+    AppLogger.indexing('fetched ${assets.length} assets from library');
     for (final asset in assets) {
       final localPath = await _photos.getLocalPath(asset);
       _photosDb.upsertAsset(asset, localPath);
     }
     _refreshCounts();
+    AppLogger.indexing('syncPhotoLibrary done — ${_state.total} rows in DB');
   }
 
   Future<void> startIndexing() async {
@@ -56,6 +60,9 @@ class IndexingService {
       ..clear()
       ..addAll(_photosDb.queryUnindexedQueue());
 
+    AppLogger.indexing(
+      'startIndexing — ${_queue.length} unindexed assets queued',
+    );
     _refreshCounts();
     _updateState(_state.copyWith(isRunning: true));
     await _registerBackgroundTask();
@@ -115,6 +122,7 @@ class IndexingService {
     if (!_paused) {
       _isRunning = false;
       _updateState(_state.copyWith(isRunning: false, currentPhotoId: null));
+      AppLogger.indexing('queue drained — indexing complete');
     }
   }
 
@@ -146,7 +154,7 @@ class IndexingService {
         if (thermal == 'serious' || thermal == 'critical') return true;
       }
     } catch (e) {
-      _warn('throttle check failed: $e');
+      AppLogger.indexing('throttle check failed: $e');
     }
     return false;
   }
@@ -175,16 +183,17 @@ class IndexingService {
     try {
       final asset = await AssetEntity.fromId(assetId);
       if (asset == null) {
-        _warn('asset $assetId not found');
+        AppLogger.indexing('asset not found — skipping', error: assetId);
         return;
       }
 
       final pixels = await _photos.getFullResBytes(asset);
       if (pixels == null) {
-        _warn('no pixels for $assetId');
+        AppLogger.indexing('no pixels available — skipping $assetId');
         return;
       }
 
+      AppLogger.indexing('indexing $assetId (${asset.width}×${asset.height})');
       await _pipeline.run(
         assetId: assetId,
         pixels: pixels,
@@ -193,7 +202,11 @@ class IndexingService {
       );
       _incrementIndexed();
     } catch (e, st) {
-      _warn('pipeline failed for $assetId: $e\n$st');
+      AppLogger.indexing(
+        'pipeline failed for $assetId',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
@@ -209,7 +222,4 @@ class IndexingService {
     _state = s;
     _onStateUpdate(s);
   }
-
-  static void _warn(String msg) =>
-      print('[IndexingService] WARNING: $msg'); // ignore: avoid_print
 }

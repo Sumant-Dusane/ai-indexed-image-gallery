@@ -22,7 +22,32 @@ Route definitions (go_router):
 /people               → PeopleScreen
 /people/:clusterId    → ClusterDetailScreen
 /photo/:photoId       → PhotoDetailScreen
+/permission-denied    → PermissionDeniedScreen
 ```
+
+Router redirect (evaluated on every navigation and on `router.refresh()`):
+- Read `photoPermissionProvider` (sync, `AsyncValue`)
+- If still loading → no redirect
+- If denied/restricted and not already on `/permission-denied` → redirect to `/permission-denied`
+- If authorized/limited and on `/permission-denied` → redirect to `/`
+
+---
+
+## PermissionDeniedScreen
+
+Component: `lib/features/permission/permission_denied_screen.dart`
+
+Shown when photo library permission is `denied` or `restricted` (routed here by the go_router redirect — never pushed directly).
+
+Layout — full screen, centered column:
+- `Icons.lock_outline`, 64px, `colorScheme.outline`
+- "No Access to Photos" — `titleMedium`
+- "AI Gallery needs permission to show your photo library." — `bodyMedium`, `onSurfaceVariant`, centred
+- `FilledButton` "Open Settings" → `PhotoManager.openSetting()`
+
+Behaviour:
+- Implements `WidgetsBindingObserver`; on `AppLifecycleState.resumed` calls `ref.invalidate(photoPermissionProvider)`
+- This triggers the router redirect to re-evaluate — if permission was granted in Settings, the user is automatically navigated to `/`
 
 ---
 

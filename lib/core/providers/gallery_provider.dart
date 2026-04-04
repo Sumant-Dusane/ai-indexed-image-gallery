@@ -1,55 +1,39 @@
-import 'package:ai_gallery/core/db/schema.dart';
-import 'package:ai_gallery/core/models/photo_asset.dart';
-import 'package:ai_gallery/core/providers/database_provider.dart';
+import 'package:ai_gallery/core/debug/app_logger.dart';
+import 'package:ai_gallery/core/providers/photo_permission_provider.dart';
+import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:photo_manager/photo_manager.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'gallery_provider.g.dart';
 
-/// Returns all photos from the DB grouped by month key `'YYYY-MM'`,
+/// Returns all device photos grouped by month key `'YYYY-MM'`,
 /// ordered newest-month first, newest photo first within each month.
+///
+/// Reads directly from the photo library — no DB required. This means the
+/// grid is populated the moment the user grants permission, before any
+/// AI indexing has run.
+///
+/// Returns an empty map if permission is not authorized or limited — the
+/// router redirect will have already navigated away from the gallery in
+/// that case, so this is only a race-condition guard on first launch.
 @riverpod
-Future<Map<String, List<PhotoAsset>>> gallery(Ref ref) async {
-  final db = await ref.watch(databaseProvider.future);
+Future<Map<String, List<AssetEntity>>> gallery(Ref ref) async {
+  final permission = await ref.watch(photoPermissionProvider.future);
+  if (!permission.isGranted) return {};
 
-  final rows = db.select(
-    'SELECT '
-    '${Columns.id}, ${Columns.localPath}, ${Columns.takenAt}, '
-    '${Columns.width}, ${Columns.height}, ${Columns.mediaType}, '
-    '${Columns.phash}, ${Columns.indexedAt}, ${Columns.clipVersion} '
-    'FROM ${Tables.photos} '
-    'ORDER BY ${Columns.takenAt} DESC',
-  );
+  AppLogger.gallery('loading assets from photo library');
+  final assets = await PhotoRepository().listAllAssets();
+  AppLogger.gallery('loaded ${assets.length} assets from photo library');
 
-  final grouped = <String, List<PhotoAsset>>{};
-  for (final row in rows) {
-    final asset = _rowToPhotoAsset(row);
-    grouped.putIfAbsent(_monthKey(asset.takenAt), () => []).add(asset);
+  final grouped = <String, List<AssetEntity>>{};
+  for (final asset in assets) {
+    final key = _monthKey(asset.createDateTime);
+    grouped.putIfAbsent(key, () => []).add(asset);
   }
+  AppLogger.gallery('grouped into ${grouped.length} month buckets');
   return grouped;
 }
 
-PhotoAsset _rowToPhotoAsset(Map<String, dynamic> row) {
-  final takenAtSec = row[Columns.takenAt] as int?;
-  final indexedAtSec = row[Columns.indexedAt] as int?;
-  return PhotoAsset(
-    id: row[Columns.id] as String,
-    localPath: row[Columns.localPath] as String?,
-    takenAt: takenAtSec != null
-        ? DateTime.fromMillisecondsSinceEpoch(takenAtSec * 1000)
-        : null,
-    width: row[Columns.width] as int?,
-    height: row[Columns.height] as int?,
-    mediaType: row[Columns.mediaType] as String,
-    phash: row[Columns.phash] as String?,
-    indexedAt: indexedAtSec != null
-        ? DateTime.fromMillisecondsSinceEpoch(indexedAtSec * 1000)
-        : null,
-    clipVersion: row[Columns.clipVersion] as int? ?? 1,
-  );
-}
-
-String _monthKey(DateTime? dt) {
-  if (dt == null) return 'Unknown';
-  return '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
-}
+String _monthKey(DateTime dt) =>
+    '${dt.year}-${dt.month.toString().padLeft(2, '0')}';

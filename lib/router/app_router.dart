@@ -1,21 +1,41 @@
+import 'package:ai_gallery/core/providers/indexing_notifier_provider.dart';
+import 'package:ai_gallery/core/providers/photo_permission_provider.dart';
+import 'package:ai_gallery/features/gallery/gallery_screen.dart';
+import 'package:ai_gallery/features/gallery/photo_detail_screen.dart';
+import 'package:ai_gallery/features/people/cluster_detail_screen.dart';
+import 'package:ai_gallery/features/people/people_screen.dart';
+import 'package:ai_gallery/features/permission/permission_denied_screen.dart';
+import 'package:ai_gallery/features/search/search_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../features/gallery/gallery_screen.dart';
-import '../features/gallery/photo_detail_screen.dart';
-import '../features/people/cluster_detail_screen.dart';
-import '../features/people/people_screen.dart';
-import '../features/search/search_screen.dart';
-
 part 'app_router.g.dart';
 
 @riverpod
 GoRouter appRouter(Ref ref) {
-  return GoRouter(
+  final router = GoRouter(
     initialLocation: '/',
+    redirect: (context, state) {
+      final permissionAsync = ref.read(photoPermissionProvider);
+
+      // Permission not yet resolved — let the current route stand.
+      if (!permissionAsync.hasValue) return null;
+
+      final permission = permissionAsync.value!;
+      final isDenied = !permission.isGranted;
+      final onDeniedPage = state.matchedLocation == '/permission-denied';
+
+      if (isDenied && !onDeniedPage) return '/permission-denied';
+      if (!isDenied && onDeniedPage) return '/';
+      return null;
+    },
     routes: [
+      GoRoute(
+        path: '/permission-denied',
+        builder: (_, __) => const PermissionDeniedScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
           return ScaffoldWithNavBar(navigationShell: navigationShell);
@@ -57,6 +77,22 @@ GoRouter appRouter(Ref ref) {
       ),
     ],
   );
+
+  // Re-run redirect whenever permission state changes (e.g. after app resumes
+  // from Settings and PermissionDeniedScreen invalidates the provider).
+  ref.listen(photoPermissionProvider, (_, __) => router.refresh());
+
+  // Kick off sync + indexing the moment permission is confirmed granted.
+  // Central startup — screens do not call syncAndStart() themselves.
+  ref.listen(photoPermissionProvider, (_, next) {
+    if (!next.hasValue) return;
+    if (next.value!.isGranted) {
+      ref.read(indexingNotifierProvider.notifier).syncAndStart();
+    }
+  });
+  ref.onDispose(router.dispose);
+
+  return router;
 }
 
 class ScaffoldWithNavBar extends StatelessWidget {

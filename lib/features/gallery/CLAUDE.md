@@ -15,7 +15,8 @@ lib/features/gallery/
 
 ## Providers consumed
 
-- `galleryProvider` → grouped photo list `Map<String, List<PhotoAsset>>`
+- `galleryProvider` → `Map<String, List<AssetEntity>>` — reads directly from `photo_manager`, no DB required.
+  Grid is populated immediately on launch before any AI indexing runs.
 - `indexingProvider` → IndexingState (for the indexing banner)
 
 ## Photo loading

@@ -1,3 +1,4 @@
+import 'package:ai_gallery/core/debug/app_logger.dart';
 import 'package:ai_gallery/core/repositories/inference_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
 
@@ -23,10 +24,12 @@ class DedupHandler extends IndexingHandler {
     );
 
     if (_photos.hasDuplicate(phash)) {
+      AppLogger.pipeline('[dedup] duplicate found — skipping ${ctx.assetId}');
       _photos.markDuplicate(ctx.assetId, phash);
       return; // short-circuit — skip inference
     }
 
+    AppLogger.pipeline('[dedup] unique — proceeding with ${ctx.assetId}');
     ctx.phash = phash;
     await forward(ctx);
   }
