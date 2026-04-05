@@ -45,6 +45,16 @@ class PhotosDbRepository {
         .toList();
   }
 
+  int countIndexed() {
+    return _db
+            .select(
+              'SELECT COUNT(*) AS c FROM ${Tables.photos} WHERE indexed_at IS NOT NULL',
+            )
+            .first['c']
+        as int? ??
+        0;
+  }
+
   ({int total, int indexed}) countPhotos() {
     final total =
         _db.select('SELECT COUNT(*) AS c FROM ${Tables.photos}').first['c']
@@ -59,6 +69,13 @@ class PhotosDbRepository {
             as int? ??
         0;
     return (total: total, indexed: indexed);
+  }
+
+  void setLocalPath(String assetId, String path) {
+    _db.execute(
+      'UPDATE ${Tables.photos} SET local_path = ? WHERE id = ? AND local_path IS NULL',
+      [path, assetId],
+    );
   }
 
   bool hasDuplicate(String phash) {

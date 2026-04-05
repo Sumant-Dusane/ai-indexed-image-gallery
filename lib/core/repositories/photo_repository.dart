@@ -68,27 +68,20 @@ class PhotoRepository {
     return entity.thumbnailDataWithSize(const ThumbnailSize(200, 200));
   }
 
-  /// Returns full-resolution pixel bytes for [entity] as a [Uint8List].
+  /// Returns full-resolution pixel bytes and the local path for [entity].
   ///
+  /// Calls [entity.file] exactly once — on iOS this materialises a temp copy,
+  /// so callers must not also call [getLocalPath] for the same asset.
   /// Returns null if the file is not locally available.
   /// Throws [StorageFullException] if the device has no free storage space.
-  Future<Uint8List?> getFullResBytes(AssetEntity entity) async {
+  Future<({Uint8List bytes, String path})?> getFullResBytesAndPath(
+    AssetEntity entity,
+  ) async {
     try {
       final file = await entity.file;
       if (file == null) return null;
-      return file.readAsBytes();
-    } on PlatformException catch (e) {
-      if (_isStorageFull(e)) throw StorageFullException(e.message ?? 'Device storage is full');
-      rethrow;
-    }
-  }
-
-  /// Returns the absolute local path for [entity], or null if unavailable.
-  /// Throws [StorageFullException] if the device has no free storage space.
-  Future<String?> getLocalPath(AssetEntity entity) async {
-    try {
-      final file = await entity.file;
-      return file?.path;
+      final bytes = await file.readAsBytes();
+      return (bytes: bytes, path: file.path);
     } on PlatformException catch (e) {
       if (_isStorageFull(e)) throw StorageFullException(e.message ?? 'Device storage is full');
       rethrow;

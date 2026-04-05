@@ -50,8 +50,9 @@ class IndexingService {
     final assets = await _photos.listAllAssets();
     AppLogger.indexing('fetched ${assets.length} assets from library');
     for (final asset in assets) {
-      final localPath = await _photos.getLocalPath(asset);
-      _photosDb.upsertAsset(asset, localPath);
+      // localPath is left null here — no entity.file call, no iOS temp write.
+      // The path is populated during _indexAsset when we already need the bytes.
+      _photosDb.upsertAsset(asset, null);
     }
     _refreshCounts();
     AppLogger.indexing('syncPhotoLibrary done — ${_state.total} rows in DB');
@@ -89,8 +90,8 @@ class IndexingService {
     for (final id in assetIds) {
       final asset = await AssetEntity.fromId(id);
       if (asset == null) continue;
-      final localPath = await _photos.getLocalPath(asset);
-      _photosDb.upsertAsset(asset, localPath);
+      // localPath populated during indexing — no temp write here.
+      _photosDb.upsertAsset(asset, null);
       _queue.addFirst(id);
     }
     _refreshCounts();
@@ -187,16 +188,19 @@ class IndexingService {
         return;
       }
 
-      final pixels = await _photos.getFullResBytes(asset);
-      if (pixels == null) {
+      final result = await _photos.getFullResBytesAndPath(asset);
+      if (result == null) {
         AppLogger.indexing('no pixels available — skipping $assetId');
         return;
       }
 
+      // Persist path now that entity.file has been called anyway for bytes.
+      _photosDb.setLocalPath(assetId, result.path);
+
       AppLogger.indexing('indexing $assetId (${asset.width}×${asset.height})');
       await _pipeline.run(
         assetId: assetId,
-        pixels: pixels,
+        pixels: result.bytes,
         width: asset.width,
         height: asset.height,
       );
