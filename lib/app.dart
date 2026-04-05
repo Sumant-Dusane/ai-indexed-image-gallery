@@ -1,3 +1,4 @@
+import 'package:ai_gallery/app_startup.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,11 +10,13 @@ class App extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);
-    return MaterialApp.router(
-      routerConfig: router,
-      theme: _lightTheme(),
-      darkTheme: _darkTheme(),
-      themeMode: ThemeMode.system,
+    return AppStartup(
+      child: MaterialApp.router(
+        routerConfig: router,
+        theme: _lightTheme(),
+        darkTheme: _darkTheme(),
+        themeMode: ThemeMode.system,
+      ),
     );
   }
 }

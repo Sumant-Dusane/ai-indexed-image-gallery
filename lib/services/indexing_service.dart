@@ -3,11 +3,13 @@ import 'dart:collection';
 import 'dart:io';
 
 import 'package:ai_gallery/core/debug/app_logger.dart';
+import 'package:ai_gallery/core/errors/storage_full_exception.dart';
 import 'package:ai_gallery/core/models/indexing_state.dart';
+import 'package:ai_gallery/core/platform/native_channel_client.dart';
 import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
 import 'package:ai_gallery/services/image_pipeline.dart';
-import 'package:flutter/services.dart' show MethodCall, MethodChannel;
+import 'package:flutter/services.dart' show MethodCall;
 import 'package:photo_manager/photo_manager.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -15,6 +17,7 @@ class IndexingService {
   final PhotosDbRepository _photosDb;
   final ImageIndexingPipeline _pipeline;
   final PhotoRepository _photos;
+  final NativeChannelClient _native;
   final void Function(IndexingState) _onStateUpdate;
 
   bool _isRunning = false;
@@ -24,19 +27,24 @@ class IndexingService {
   Timer? _throttlePoller;
 
   static const _bgTaskId = 'com.aigallery.indexing';
-  static const _throttleChannel = MethodChannel('com.aigallery/throttle');
-  static const _bgChannel = MethodChannel('com.aigallery/background');
 
   IndexingService({
     required PhotosDbRepository photosDb,
     required ImageIndexingPipeline pipeline,
     required PhotoRepository photos,
+    required NativeChannelClient native,
     required void Function(IndexingState) onStateUpdate,
   }) : _photosDb = photosDb,
        _pipeline = pipeline,
        _photos = photos,
+       _native = native,
        _onStateUpdate = onStateUpdate;
 
+  /// Loads all known assets into the photos table (no inference).
+  ///
+  /// Uses INSERT OR IGNORE — safe to call on every launch.
+  /// Throws [StorageFullException] if the device runs out of space mid-sync;
+  /// callers are responsible for catching and surfacing this.
   Future<void> syncPhotoLibrary() async {
     AppLogger.indexing('syncPhotoLibrary started');
     final assets = await _photos.listAllAssets();
@@ -49,6 +57,10 @@ class IndexingService {
     AppLogger.indexing('syncPhotoLibrary done — ${_state.total} rows in DB');
   }
 
+  /// Starts the indexing queue. No-op if already running.
+  ///
+  /// Throws [StorageFullException] if the device runs out of space during
+  /// inference; callers are responsible for catching and surfacing this.
   Future<void> startIndexing() async {
     if (_isRunning) return;
     _isRunning = true;
@@ -60,9 +72,7 @@ class IndexingService {
       ..clear()
       ..addAll(_photosDb.queryUnindexedQueue());
 
-    AppLogger.indexing(
-      'startIndexing — ${_queue.length} unindexed assets queued',
-    );
+    AppLogger.indexing('startIndexing — ${_queue.length} unindexed assets queued');
     _refreshCounts();
     _updateState(_state.copyWith(isRunning: true));
     await _registerBackgroundTask();
@@ -140,19 +150,12 @@ class IndexingService {
   }
 
   /// Returns true if indexing should pause due to low battery or high thermal load.
-  /// Reads battery level and (iOS-only) thermal state via the native
-  /// 'com.aigallery/throttle' method channel.
   Future<bool> _shouldPauseForThrottle() async {
     try {
-      final batteryLevel =
-          await _throttleChannel.invokeMethod<double>('getBatteryLevel') ?? 1.0;
+      final batteryLevel = await _native.getBatteryLevel();
       if (batteryLevel < 0.20) return true;
-      if (Platform.isIOS) {
-        final thermal =
-            await _throttleChannel.invokeMethod<String>('getThermalState') ??
-            'nominal';
-        if (thermal == 'serious' || thermal == 'critical') return true;
-      }
+      final thermal = await _native.getThermalState();
+      if (thermal == 'serious' || thermal == 'critical') return true;
     } catch (e) {
       AppLogger.indexing('throttle check failed: $e');
     }
@@ -160,11 +163,8 @@ class IndexingService {
   }
 
   Future<void> _registerBackgroundTask() async {
-    if (Platform.isIOS) {
-      // iOS uses a native BGProcessingTask registered in AppDelegate.
-      // Dart just triggers scheduling via a platform channel.
-      await _bgChannel.invokeMethod<void>('scheduleIndexingTask');
-    } else if (Platform.isAndroid) {
+    await _native.scheduleIndexingTask(); // no-op on Android
+    if (Platform.isAndroid) {
       await Workmanager().registerPeriodicTask(
         _bgTaskId,
         'IndexingWorker',
@@ -201,12 +201,12 @@ class IndexingService {
         height: asset.height,
       );
       _incrementIndexed();
+    } on StorageFullException {
+      // Pause the queue; re-throw so the caller (IndexingNotifier) can surface the error.
+      pause();
+      rethrow;
     } catch (e, st) {
-      AppLogger.indexing(
-        'pipeline failed for $assetId',
-        error: e,
-        stackTrace: st,
-      );
+      AppLogger.indexing('pipeline failed for $assetId', error: e, stackTrace: st);
     }
   }
 

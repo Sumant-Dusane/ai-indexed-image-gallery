@@ -31,6 +31,11 @@ Router redirect (evaluated on every navigation and on `router.refresh()`):
 - If denied/restricted and not already on `/permission-denied` → redirect to `/permission-denied`
 - If authorized/limited and on `/permission-denied` → redirect to `/`
 
+Router refresh listeners (in `appRouterProvider`):
+- `ref.listen(photoPermissionProvider, (_, __) => router.refresh())`
+
+Storage errors do **not** block navigation. They surface as an inline strip inside `GalleryScreen`.
+
 ---
 
 ## PermissionDeniedScreen
@@ -69,6 +74,11 @@ Behaviour:
 - Load thumbnails lazily as user scrolls (use `photo_manager` caching)
 - If indexing is in progress: show subtle banner at top "Analysing your library… X of Y"
   (tap banner → go to IndexingProgressScreen)
+- If `storageErrorNotifierProvider != null`: show `_StorageErrorStrip` above the grid.
+  Strip: `colorScheme.errorContainer` background, `Icons.warning_amber_rounded` (16px),
+  message from `storageErrorNotifierProvider` (e.g. "Not enough storage to analyse photos.
+  Free up N MB to enable AI search."), `bodySmall` text in `onErrorContainer` colour.
+  Gallery photos continue to load normally — strip is informational only, not a blocker.
 
 Do NOT show any AI-generated labels on the grid — clean grid only.
 
@@ -175,6 +185,13 @@ Displayed while foreground indexing runs during setup.
 Layout:
 - Full screen, clean white
 - App icon + "AI Gallery" title centred at top third
+- **Storage estimate row** (shown once `indexingState.total > 0`, before progress starts):
+  - Copy: `"AI Gallery needs approximately X MB to analyse your N photos."`
+  - Calculation: `requiredMB = 90 + ceil(N × 3 / 1024)`
+    - 90 MB = model files extracted to documents directory on first launch (see `docs/models.md`)
+    - 3 KB per photo = CLIP embedding (2 KB) + photo row + avg detections + overhead
+  - Style: `bodySmall`, `onSurfaceVariant`, centred, shown in a subtle info row with `Icons.info_outline` (16px)
+  - Hide once `indexingState.indexed > 0` (indexing is underway, no need to show estimate)
 - Progress bar (linear, indeterminate until total count known, then determinate)
 - Counter: "Analysing 1,240 of 8,432 photos"
 - Three status rows (each gets a green checkmark when phase hits first completion):
@@ -188,6 +205,14 @@ Layout:
   → indexing continues in background
 
 Do not block the user from the app after "Skip". Onboarding screen never reappears.
+
+Storage estimate helper (implement inline in `onboarding_screen.dart`):
+```dart
+String storageEstimate(int photoCount) {
+  final mb = 90 + (photoCount * 3 / 1024).ceil();
+  return 'AI Gallery needs approximately $mb MB to analyse your $photoCount photos.';
+}
+```
 
 ---
 

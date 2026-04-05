@@ -41,7 +41,6 @@ class IndexingState with _$IndexingState {
   }) = _IndexingState;
 }
 
-// Expose via riverpod_generator:
 @riverpod
 class IndexingNotifier extends _$IndexingNotifier {
   @override
@@ -55,42 +54,121 @@ class IndexingNotifier extends _$IndexingNotifier {
 
 ## Startup trigger — where and when to call sync + start
 
-`syncAndStart()` is triggered from a single central location: **`appRouterProvider`** (`lib/router/app_router.dart`).
+Startup is triggered from **`AppStartup`** (`lib/app_startup.dart`) — a `ConsumerStatefulWidget` that wraps `MaterialApp.router` inside `App`.
 
-A `ref.listen` on `photoPermissionProvider` fires `syncAndStart()` the moment permission resolves to granted, on every app launch. This covers both first launch and subsequent launches without screen-level coordination.
+A `ref.listen` on `photoPermissionProvider` fires `_run()` the moment permission resolves to granted. `_run()` is the chain: clear error → storage check → `_syncAndStart()`.
 
 ```dart
-// In appRouterProvider, alongside the existing permission listener:
+// In _AppStartupState.build:
 ref.listen(photoPermissionProvider, (_, next) {
-  if (!next.hasValue) return;
-  if (next.value!.isGranted) {
-    ref.read(indexingNotifierProvider.notifier).syncAndStart();
-  }
+  if (next.hasValue && next.value!.isGranted) _run();
 });
 ```
 
-`syncAndStart()` runs in the background — **the gallery grid does not wait for it**.
-`galleryProvider` reads directly from `photo_manager` so photos appear immediately on launch.
-The DB is populated by `syncPhotoLibrary()` in the background for AI search (Phase 4+).
+`_run()` and `_syncAndStart()` run in the background — the gallery grid does not wait for them.
+`galleryProvider` reads directly from `photo_manager` so photos appear immediately.
 
-`syncAndStart()` is a method on `IndexingNotifier` that:
-1. Awaits `photoPermissionProvider` to ensure `requestPermissionExtend()` has completed before listing assets
-2. Calls `syncPhotoLibrary()`
-3. Calls `startIndexing()` only if `state.total > 0` (skips if the library is empty)
+Both underlying calls are safe to repeat:
+- `syncPhotoLibrary()` uses INSERT OR IGNORE
+- `startIndexing()` has an `isRunning` guard
+
+---
+
+## Storage check — pre-flight before indexing
+
+Before sync or indexing starts, `_runPreflights()` runs a one-shot storage check via
+`storageCheckProvider` (`lib/core/providers/storage_check_provider.dart`).
+
+### `storageCheckProvider`
 
 ```dart
-Future<void> syncAndStart() async {
-  final permission = await ref.read(photoPermissionProvider.future);
-  if (!permission.isGranted) return;
-  final service = await ref.read(indexingServiceProvider.future);
-  await service.syncPhotoLibrary();
-  if (state.total > 0) await service.startIndexing();
+@riverpod
+Future<StorageCheckResult> storageCheck(Ref ref) async { ... }
+
+typedef StorageCheckResult = ({
+  bool isSufficient,
+  int requiredMb,
+  int availableMb,
+});
+```
+
+Gets free bytes via `NativeChannelClient.getFreeBytes()`.
+Gets unindexed count via `PhotosDbRepository(db).countPhotos()` → `total - indexed`.
+
+Calculation:
+```
+requiredBytes = unindexed × 3 KB   ← DB cost per remaining photo
+              + 90 MB               ← model extraction on first launch
+```
+
+### `_run()` flow (in AppStartup)
+
+```
+1. clearError()
+2. await storageCheckProvider — if !isSufficient:
+     setError('...free up N MB...')
+     return
+3. _syncAndStart()
+```
+
+### `StorageErrorNotifier` — separate provider
+
+`lib/core/providers/storage_error_provider.dart`
+
+```dart
+@Riverpod(keepAlive: true)
+class StorageErrorNotifier extends _$StorageErrorNotifier {
+  @override
+  String? build() => null;
+
+  void setError(String message) => state = message;
+  void clearError() => state = null;
 }
 ```
 
-Both underlying calls are safe to repeat:
-- `syncPhotoLibrary()` uses INSERT OR IGNORE — re-running never duplicates rows
-- `startIndexing()` has an `isRunning` guard — calling it while already running is a no-op
+Set by: `_runPreflights()` when storage check fails, and `syncAndStart()` when it catches
+`StorageFullException` from the indexing service during sync or inference.
+Consumed by: `GalleryScreen` — displays a persistent error strip when non-null.
+No router redirect — the gallery still loads normally from `photo_manager`.
+
+`_runPreflights()` calls `clearError()` at entry so every retry starts clean.
+
+## NativeChannelClient — central platform channel delegator
+
+`lib/core/platform/native_channel_client.dart`
+
+All `MethodChannel` constants and method names live in a single `NativeChannelClient` class,
+provided as a `@Riverpod(keepAlive: true)` singleton via `nativeChannelClientProvider`.
+
+| Method | Channel | Native method |
+|---|---|---|
+| `getFreeBytes()` | `com.aigallery/storage` | `getFreeBytes` |
+| `getBatteryLevel()` | `com.aigallery/throttle` | `getBatteryLevel` |
+| `getThermalState()` | `com.aigallery/throttle` | `getThermalState` (iOS only) |
+| `scheduleIndexingTask()` | `com.aigallery/background` | `scheduleIndexingTask` (iOS only) |
+
+Injected into: `IndexingService` (throttle + background), `storageCheckProvider` (storage).
+When a native call breaks, open this one file.
+
+## Storage-full detection (in PhotoRepository)
+
+`getLocalPath()` and `getFullResBytes()` both call `entity.file`, which on iOS copies
+the file to a temp directory. When the device has no space this throws a
+`PlatformException` with `NSCocoaErrorDomain` code `640` (`NSFileWriteOutOfSpaceError`).
+
+```dart
+bool _isStorageFull(PlatformException e) {
+  if (e.code.contains('640')) return true;
+  final msg = (e.message ?? '').toLowerCase();
+  return msg.contains('out of space') || msg.contains('no space left');
+}
+```
+
+Re-throw detected errors as `StorageFullException` (`lib/core/errors/storage_full_exception.dart`).
+
+`IndexingService` does not catch `StorageFullException` — it calls `pause()` in `_indexAsset`
+then re-throws, letting the exception propagate through `_drainQueue` → `startIndexing()` →
+`IndexingNotifier.syncAndStart()`, where it is caught and routed to `storageErrorNotifierProvider`.
 
 ---
 

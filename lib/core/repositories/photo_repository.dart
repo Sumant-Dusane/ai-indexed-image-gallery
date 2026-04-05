@@ -1,5 +1,5 @@
-import 'dart:typed_data';
-
+import 'package:ai_gallery/core/errors/storage_full_exception.dart';
+import 'package:flutter/services.dart';
 import 'package:photo_manager/photo_manager.dart';
 
 /// Wraps [photo_manager] to provide asset listing and pixel byte access.
@@ -14,6 +14,18 @@ class PhotoRepository {
   /// [PermissionState.limited].
   Future<PermissionState> requestPermission() async {
     return PhotoManager.requestPermissionExtend();
+  }
+
+  /// Returns the total number of assets in the photo library.
+  ///
+  /// Uses [AssetPathEntity.assetCountAsync] — much faster than loading all
+  /// assets, suitable for pre-indexing storage estimates.
+  Future<int> getAssetCount() async {
+    final albums = await PhotoManager.getAssetPathList(
+      type: RequestType.common,
+    );
+    if (albums.isEmpty) return 0;
+    return albums.first.assetCountAsync;
   }
 
   /// Returns all image and video assets from the photo library, sorted by
@@ -59,15 +71,37 @@ class PhotoRepository {
   /// Returns full-resolution pixel bytes for [entity] as a [Uint8List].
   ///
   /// Returns null if the file is not locally available.
+  /// Throws [StorageFullException] if the device has no free storage space.
   Future<Uint8List?> getFullResBytes(AssetEntity entity) async {
-    final file = await entity.file;
-    if (file == null) return null;
-    return file.readAsBytes();
+    try {
+      final file = await entity.file;
+      if (file == null) return null;
+      return file.readAsBytes();
+    } on PlatformException catch (e) {
+      if (_isStorageFull(e)) throw StorageFullException(e.message ?? 'Device storage is full');
+      rethrow;
+    }
   }
 
   /// Returns the absolute local path for [entity], or null if unavailable.
+  /// Throws [StorageFullException] if the device has no free storage space.
   Future<String?> getLocalPath(AssetEntity entity) async {
-    final file = await entity.file;
-    return file?.path;
+    try {
+      final file = await entity.file;
+      return file?.path;
+    } on PlatformException catch (e) {
+      if (_isStorageFull(e)) throw StorageFullException(e.message ?? 'Device storage is full');
+      rethrow;
+    }
+  }
+
+  /// Returns true if [e] indicates the device has no free storage space.
+  ///
+  /// iOS: NSCocoaErrorDomain code 640 = NSFileWriteOutOfSpaceError.
+  /// Android / fallback: message-based detection.
+  bool _isStorageFull(PlatformException e) {
+    if (e.code.contains('640')) return true;
+    final msg = (e.message ?? '').toLowerCase();
+    return msg.contains('out of space') || msg.contains('no space left');
   }
 }

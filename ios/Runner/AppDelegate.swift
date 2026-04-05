@@ -6,6 +6,7 @@ import UIKit
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private static let bgTaskId = "com.aigallery.indexing"
   private static let bgChannelName = "com.aigallery/background"
+  private static let storageChannelName = "com.aigallery/storage"
 
   override func application(
     _ application: UIApplication,
@@ -18,6 +19,7 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     setupBackgroundChannel(registry: engineBridge.pluginRegistry)
+    setupStorageChannel(registry: engineBridge.pluginRegistry)
   }
 
   // MARK: - BGProcessingTask
@@ -52,6 +54,23 @@ import UIKit
         result(nil)
       default:
         result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private func setupStorageChannel(registry: FlutterPluginRegistry) {
+    guard let registrar = registry.registrar(forPlugin: "AiGalleryStoragePlugin") else { return }
+    let channel = FlutterMethodChannel(
+      name: AppDelegate.storageChannelName,
+      binaryMessenger: registrar.messenger()
+    )
+    channel.setMethodCallHandler { _, result in
+      do {
+        let attrs = try FileManager.default.attributesOfFileSystem(forPath: NSHomeDirectory())
+        let free = (attrs[.systemFreeSize] as? Int) ?? 0
+        result(free)
+      } catch {
+        result(FlutterError(code: "STORAGE_ERROR", message: error.localizedDescription, details: nil))
       }
     }
   }

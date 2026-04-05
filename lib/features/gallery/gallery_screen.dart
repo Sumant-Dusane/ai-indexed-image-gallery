@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:ai_gallery/core/providers/gallery_provider.dart';
+import 'package:ai_gallery/core/providers/storage_error_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -11,14 +12,58 @@ class GalleryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final galleryAsync = ref.watch(galleryProvider);
+    final storageError = ref.watch(storageErrorNotifierProvider);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Gallery')),
-      body: galleryAsync.when(
-        data: (grouped) => grouped.isEmpty
-            ? const Center(child: Text('No photos'))
-            : _GalleryGrid(grouped: grouped),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error loading gallery: $e')),
+      body: Column(
+        children: [
+          if (storageError != null) _StorageErrorStrip(message: storageError),
+          Expanded(
+            child: galleryAsync.when(
+              data: (grouped) => grouped.isEmpty
+                  ? const Center(child: Text('No photos'))
+                  : _GalleryGrid(grouped: grouped),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error loading gallery: $e')),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StorageErrorStrip extends StatelessWidget {
+  const _StorageErrorStrip({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: theme.colorScheme.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              size: 16,
+              color: theme.colorScheme.onErrorContainer,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onErrorContainer,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

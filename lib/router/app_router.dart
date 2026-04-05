@@ -1,4 +1,3 @@
-import 'package:ai_gallery/core/providers/indexing_notifier_provider.dart';
 import 'package:ai_gallery/core/providers/photo_permission_provider.dart';
 import 'package:ai_gallery/features/gallery/gallery_screen.dart';
 import 'package:ai_gallery/features/gallery/photo_detail_screen.dart';
@@ -29,6 +28,7 @@ GoRouter appRouter(Ref ref) {
 
       if (isDenied && !onDeniedPage) return '/permission-denied';
       if (!isDenied && onDeniedPage) return '/';
+
       return null;
     },
     routes: [
@@ -81,15 +81,6 @@ GoRouter appRouter(Ref ref) {
   // Re-run redirect whenever permission state changes (e.g. after app resumes
   // from Settings and PermissionDeniedScreen invalidates the provider).
   ref.listen(photoPermissionProvider, (_, __) => router.refresh());
-
-  // Kick off sync + indexing the moment permission is confirmed granted.
-  // Central startup — screens do not call syncAndStart() themselves.
-  ref.listen(photoPermissionProvider, (_, next) {
-    if (!next.hasValue) return;
-    if (next.value!.isGranted) {
-      ref.read(indexingNotifierProvider.notifier).syncAndStart();
-    }
-  });
   ref.onDispose(router.dispose);
 
   return router;
