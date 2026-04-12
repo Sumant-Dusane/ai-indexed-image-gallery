@@ -111,13 +111,13 @@ requiredBytes = unindexed × 3 KB   ← DB cost per remaining photo
 3. _syncAndStart()
 ```
 
-### `StorageErrorNotifier` — separate provider
+### `BlockingErrorNotifier` — separate provider
 
-`lib/core/providers/storage_error_provider.dart`
+`lib/core/providers/blocking_error_provider.dart`
 
 ```dart
 @Riverpod(keepAlive: true)
-class StorageErrorNotifier extends _$StorageErrorNotifier {
+class BlockingErrorNotifier extends _$BlockingErrorNotifier {
   @override
   String? build() => null;
 
@@ -168,7 +168,7 @@ Re-throw detected errors as `StorageFullException` (`lib/core/errors/storage_ful
 
 `IndexingService` does not catch `StorageFullException` — it calls `pause()` in `_indexAsset`
 then re-throws, letting the exception propagate through `_drainQueue` → `startIndexing()` →
-`IndexingNotifier.syncAndStart()`, where it is caught and routed to `storageErrorNotifierProvider`.
+`IndexingNotifier.syncAndStart()`, where it is caught and routed to `blockingErrorNotifierProvider`.
 
 ---
 

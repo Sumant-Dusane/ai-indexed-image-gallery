@@ -1,9 +1,9 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'storage_error_provider.g.dart';
+part 'blocking_error_provider.g.dart';
 
 @Riverpod(keepAlive: true)
-class StorageErrorNotifier extends _$StorageErrorNotifier {
+class BlockingErrorNotifier extends _$BlockingErrorNotifier {
   @override
   String? build() => null;
 

@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:ai_gallery/core/errors/storage_full_exception.dart';
 import 'package:flutter/services.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -96,5 +98,32 @@ class PhotoRepository {
     if (e.code.contains('640')) return true;
     final msg = (e.message ?? '').toLowerCase();
     return msg.contains('out of space') || msg.contains('no space left');
+  }
+
+  /// Decodes [compressedBytes] (JPEG, HEIC, PNG, etc.) to raw RGB24 pixels.
+  ///
+  /// Returns the decoded pixel buffer and actual image dimensions.
+  /// The pixel layout is row-major RGB24: each pixel is 3 consecutive bytes (R, G, B).
+  Future<({Uint8List pixels, int width, int height})> decodeToRgb(
+    Uint8List compressedBytes,
+  ) async {
+    final codec = await ui.instantiateImageCodec(compressedBytes);
+    final frame = await codec.getNextFrame();
+    final w = frame.image.width;
+    final h = frame.image.height;
+    final byteData = await frame.image.toByteData(
+      format: ui.ImageByteFormat.rawRgba,
+    );
+    frame.image.dispose();
+
+    // RGBA → RGB24: drop the alpha byte from each pixel.
+    final rgba = byteData!.buffer.asUint8List();
+    final rgb = Uint8List(w * h * 3);
+    for (int i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
+      rgb[j]     = rgba[i];
+      rgb[j + 1] = rgba[i + 1];
+      rgb[j + 2] = rgba[i + 2];
+    }
+    return (pixels: rgb, width: w, height: h);
   }
 }

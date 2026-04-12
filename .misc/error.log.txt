@@ -1,0 +1,91 @@
+flutter: [GALLERY] loading assets from photo library
+"Error returned from daemon: Error Domain=com.apple.accounts Code=7 "(null)""
+flutter: [INDEXING] storage check — free: 336MB, unindexed: 4266 (4266 total, 0 indexed), models extracted: false, required: 103MB
+flutter: [GALLERY] loaded 4266 assets from photo library
+flutter: [GALLERY] grouped into 53 month buckets
+flutter: [INDEXING] syncPhotoLibrary started
+flutter: [INDEXING] fetched 4266 assets from library
+flutter: [INDEXING] syncPhotoLibrary done — 4266 rows in DB
+flutter: [INDEXING] startIndexing — 4266 unindexed assets queued
+flutter: [INDEXING] throttle check failed: MissingPluginException(No implementation found for method getBatteryLevel on channel com.aigallery/throttle)
+flutter: [INDEXING] indexing 28BBD9DD-DC4B-477F-9BF1-0ED28BC2FCAE/L0/001 (3024×4032)
+thread '<unnamed>' (7525808) panicked at src/shared/utils/phash.rs:14:14:
+pixel buffer size does not match width × height × 3
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+flutter: [INDEXING] indexing 39234F71-D93D-46FE-8486-A39D32DBF8C5/L0/001 (3024×4032)
+thread '<unnamed>' (7525809) panicked at src/shared/utils/phash.rs:14:14:
+pixel buffer size does not match width × height × 3
+flutter: [INDEXING] indexing 5561821E-9B66-4338-958F-025626FCAF89/L0/001 (3024×4032)
+thread '<unnamed>' (7525810) panicked at src/shared/utils/phash.rs:14:14:
+pixel buffer size does not match width × height × 3
+flutter: [INDEXING] pipeline failed for 28BBD9DD-DC4B-477F-9BF1-0ED28BC2FCAE/L0/001
+flutter: [INDEXING] ERROR: PanicException(pixel buffer size does not match width × height × 3)
+flutter: [INDEXING]
+flutter: #0      SimpleDecoder.decode (package:flutter_rust_bridge/src/codec/base.dart:35:9)
+flutter: #1      SseCodec._decode (package:flutter_rust_bridge/src/codec/sse.dart:45:55)
+flutter: #2      SseCodec.decodeObject (package:flutter_rust_bridge/src/codec/sse.dart:35:12)
+flutter: <asynchronous suspension>
+flutter: #3      DedupHandler.handle (package:ai_gallery/services/pipeline/dedup_handler.dart:20:19)
+flutter: <asynchronous suspension>
+flutter: #4      IndexingService._indexAsset (package:ai_gallery/services/indexing_service.dart:201:7)
+flutter: <asynchronous suspension>
+flutter: #5      Future.wait.<anonymous closure> (dart:async/future.dart:546:21)
+flutter: <asynchronous suspension>
+flutter: #6      IndexingService._drainQueue (package:ai_gallery/services/indexing_service.dart:131:7)
+flutter: <asynchronous suspension>
+flutter: #7      IndexingService.startIndexing (package:ai_gallery/services/indexing_service.dart:80:5)
+flutter: <asynchronous suspension>
+flutter: #8      _AppStartupState._syncAndStart (package:ai_gallery/app_startup.dart:47:57)
+flutter: <asynchronous suspension>
+flutter: #9      _AppStartupState._run (package:ai_gallery/app_startup.dart:40:5)
+flutter: <asynchronous suspension>
+flutter:
+flutter: [INDEXING] pipeline failed for 39234F71-D93D-46FE-8486-A39D32DBF8C5/L0/001
+flutter: [INDEXING] ERROR: PanicException(pixel buffer size does not match width × height × 3)
+flutter: [INDEXING]
+flutter: #0      SimpleDecoder.decode (package:flutter_rust_bridge/src/codec/base.dart:35:9)
+flutter: #1      SseCodec._decode (package:flutter_rust_bridge/src/codec/sse.dart:45:55)
+flutter: #2      SseCodec.decodeObject (package:flutter_rust_bridge/src/codec/sse.dart:35:12)
+flutter: <asynchronous suspension>
+flutter: #3      DedupHandler.handle (package:ai_gallery/services/pipeline/dedup_handler.dart:20:19)
+flutter: <asynchronous suspension>
+flutter: #4      IndexingService._indexAsset (package:ai_gallery/services/indexing_service.dart:201:7)
+flutter: <asynchronous suspension>
+flutter: #5      Future.wait.<anonymous closure> (dart:async/future.dart:546:21)
+flutter: <asynchronous suspension>
+flutter: #6      IndexingService._drainQueue (package:ai_gallery/services/indexing_service.dart:131:7)
+flutter: <asynchronous suspension>
+flutter: #7      IndexingService.startIndexing (package:ai_gallery/services/indexing_service.dart:80:5)
+flutter: <asynchronous suspension>
+flutter: #8      _AppStartupState._syncAndStart (package:ai_gallery/app_startup.dart:47:57)
+flutter: <asynchronous suspension>
+flutter: #9      _AppStartupState._run (package:ai_gallery/app_startup.dart:40:5)
+flutter: <asynchronous suspension>
+flutter:
+App is being debugged, do not track this hang
+Hang detected: 1.92s (debugger attached, not reporting)
+flutter: [INDEXING] pipeline failed for 5561821E-9B66-4338-958F-025626FCAF89/L0/001
+flutter: [INDEXING] ERROR: PanicException(pixel buffer size does not match width × height × 3)
+flutter: [INDEXING]
+flutter: #0      SimpleDecoder.decode (package:flutter_rust_bridge/src/codec/base.dart:35:9)
+flutter: #1      SseCodec._decode (package:flutter_rust_bridge/src/codec/sse.dart:45:55)
+flutter: #2      SseCodec.decodeObject (package:flutter_rust_bridge/src/codec/sse.dart:35:12)
+flutter: <asynchronous suspension>
+flutter: #3      DedupHandler.handle (package:ai_gallery/services/pipeline/dedup_handler.dart:20:19)
+flutter: <asynchronous suspension>
+flutter: #4      IndexingService._indexAsset (package:ai_gallery/services/indexing_service.dart:201:7)
+flutter: <asynchronous suspension>
+flutter: #5      Future.wait.<anonymous closure> (dart:async/future.dart:546:21)
+flutter: <asynchronous suspension>
+flutter: #6      IndexingService._drainQueue (package:ai_gallery/services/indexing_service.dart:131:7)
+flutter: <asynchronous suspension>
+flutter: #7      IndexingService.startIndexing (package:ai_gallery/services/indexing_service.dart:80:5)
+flutter: <asynchronous suspension>
+flutter: #8      _AppStartupState._syncAndStart (package:ai_gallery/app_startup.dart:47:57)
+flutter: <asynchronous suspension>
+flutter: #9      _AppStartupState._run (package:ai_gallery/app_startup.dart:40:5)
+flutter: <asynchronous suspension>
+flutter:
+flutter: [INDEXING] indexing D0F9E830-0AE0-4F17-B18C-08FE19D1A578/L0/001 (1080×1920)
+flutter: [PIPELINE] [dedup] unique — proceeding with D0F9E830-0AE0-4F17-B18C-08FE19D1A578/L0/001
+flutter: [PIPELINE] [inference] running CLIP + YOLO for D0F9E830-0AE0-4F17-B18C-08FE19D1A578/L0/001

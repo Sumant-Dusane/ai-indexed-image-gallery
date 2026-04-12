@@ -9,6 +9,8 @@ import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'shared/types/bbox.dart';
 
+// These functions are ignored because they are not marked as `pub`: `setup_panic_hook`
+
 /// Stores the model directory path so ONNX sessions can load lazily on first use.
 /// Must be called once at app startup before any inference function.
 Future<void> initModels({required String modelDir}) =>

@@ -5,9 +5,36 @@ use crate::shared::BBox;
 use crate::features::detection::Detection;
 use crate::features::emotion::EmotionResult;
 
+/// Installs a structured panic hook that replaces Rust's noisy default format.
+/// Prints `[RUST_PANIC::<stem>:<line>] <message>` to stderr so Xcode output
+/// matches the AppLogger format visible in the Flutter debug console.
+fn setup_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let location = info.location().map(|l| {
+            let stem = l.file()
+                .split('/')
+                .last()
+                .unwrap_or(l.file())
+                .trim_end_matches(".rs");
+            format!("{}:{}", stem, l.line())
+        }).unwrap_or_else(|| "unknown".to_string());
+
+        let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
+            s.to_string()
+        } else if let Some(s) = info.payload().downcast_ref::<String>() {
+            s.clone()
+        } else {
+            "panic".to_string()
+        };
+
+        eprintln!("[RUST_PANIC::{}] {}", location, payload);
+    }));
+}
+
 /// Stores the model directory path so ONNX sessions can load lazily on first use.
 /// Must be called once at app startup before any inference function.
 pub fn init_models(model_dir: String) {
+    setup_panic_hook();
     // Silently ignore if already initialised (e.g. hot-reload, Riverpod async
     // re-run). The OnceLock already holds the correct path.
     let _ = crate::shared::MODEL_DIR.set(model_dir);

@@ -10,6 +10,7 @@ import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
 import 'package:ai_gallery/services/image_pipeline.dart';
 import 'package:flutter/services.dart' show MethodCall;
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:workmanager/workmanager.dart';
 
@@ -25,6 +26,7 @@ class IndexingService {
   final ListQueue<String> _queue = ListQueue();
   IndexingState _state = const IndexingState();
   Timer? _throttlePoller;
+  int _consecutivePanics = 0;
 
   static const _bgTaskId = 'com.aigallery.indexing';
 
@@ -197,20 +199,29 @@ class IndexingService {
       // Persist path now that entity.file has been called anyway for bytes.
       _photosDb.setLocalPath(assetId, result.path);
 
-      AppLogger.indexing('indexing $assetId (${asset.width}×${asset.height})');
+      final decoded = await _photos.decodeToRgb(result.bytes);
+      AppLogger.indexing('indexing $assetId (${decoded.width}×${decoded.height})');
       await _pipeline.run(
         assetId: assetId,
-        pixels: result.bytes,
-        width: asset.width,
-        height: asset.height,
+        pixels: decoded.pixels,
+        width: decoded.width,
+        height: decoded.height,
       );
       _incrementIndexed();
+      _consecutivePanics = 0;
     } on StorageFullException {
       // Pause the queue; re-throw so the caller (IndexingNotifier) can surface the error.
       pause();
       rethrow;
     } catch (e, st) {
       AppLogger.indexing('pipeline failed for $assetId', error: e, stackTrace: st);
+      if (e is PanicException) {
+        _consecutivePanics++;
+        if (_consecutivePanics >= 3) {
+          pause();
+          rethrow;
+        }
+      }
     }
   }
 

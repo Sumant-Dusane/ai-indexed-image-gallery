@@ -44,5 +44,10 @@ android/GeneratedPluginRegistrant.java
 android/key.properties
 *.jks
 
+# FVM
+
 # Rust
 rust/target/
+
+# FVM Version Cache
+.fvm/

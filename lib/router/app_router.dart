@@ -1,4 +1,6 @@
 import 'package:ai_gallery/core/providers/photo_permission_provider.dart';
+import 'package:ai_gallery/features/debug_probe/presentation/debug_probe_screen.dart';
+import 'package:ai_gallery/features/debug_probe/utils/constants.dart';
 import 'package:ai_gallery/features/gallery/gallery_screen.dart';
 import 'package:ai_gallery/features/gallery/photo_detail_screen.dart';
 import 'package:ai_gallery/features/people/cluster_detail_screen.dart';
@@ -62,6 +64,15 @@ GoRouter appRouter(Ref ref) {
               ),
             ],
           ),
+          if (kDebugProbeEnabled)
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/debug-probe',
+                  builder: (_, __) => const DebugProbeScreen(),
+                ),
+              ],
+            ),
         ],
       ),
       GoRoute(
@@ -103,22 +114,28 @@ class ScaffoldWithNavBar extends StatelessWidget {
             initialLocation: index == navigationShell.currentIndex,
           );
         },
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
             icon: Icon(Icons.photo_library_outlined),
             selectedIcon: Icon(Icons.photo_library),
             label: 'Gallery',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.search_outlined),
             selectedIcon: Icon(Icons.search),
             label: 'Search',
           ),
-          NavigationDestination(
+          const NavigationDestination(
             icon: Icon(Icons.people_outlined),
             selectedIcon: Icon(Icons.people),
             label: 'People',
           ),
+          if (kDebugProbeEnabled)
+            const NavigationDestination(
+              icon: Icon(Icons.bug_report_outlined),
+              selectedIcon: Icon(Icons.bug_report),
+              label: 'Debug',
+            ),
         ],
       ),
     );

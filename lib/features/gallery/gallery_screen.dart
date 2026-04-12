@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:ai_gallery/core/providers/gallery_provider.dart';
-import 'package:ai_gallery/core/providers/storage_error_provider.dart';
+import 'package:ai_gallery/core/providers/blocking_error_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
@@ -12,7 +12,7 @@ class GalleryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final galleryAsync = ref.watch(galleryProvider);
-    final storageError = ref.watch(storageErrorNotifierProvider);
+    final storageError = ref.watch(blockingErrorNotifierProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Gallery')),
