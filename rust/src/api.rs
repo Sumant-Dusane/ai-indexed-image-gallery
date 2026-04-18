@@ -1,23 +1,27 @@
 // Facade: all bridge functions exposed to Dart.
 // Types live in their feature or shared modules.
 
-use crate::shared::BBox;
 use crate::features::detection::Detection;
 use crate::features::emotion::EmotionResult;
+use crate::shared::BBox;
 
 /// Installs a structured panic hook that replaces Rust's noisy default format.
 /// Prints `[RUST_PANIC::<stem>:<line>] <message>` to stderr so Xcode output
 /// matches the AppLogger format visible in the Flutter debug console.
 fn setup_panic_hook() {
     std::panic::set_hook(Box::new(|info| {
-        let location = info.location().map(|l| {
-            let stem = l.file()
-                .split('/')
-                .last()
-                .unwrap_or(l.file())
-                .trim_end_matches(".rs");
-            format!("{}:{}", stem, l.line())
-        }).unwrap_or_else(|| "unknown".to_string());
+        let location = info
+            .location()
+            .map(|l| {
+                let stem = l
+                    .file()
+                    .split('/')
+                    .last()
+                    .unwrap_or(l.file())
+                    .trim_end_matches(".rs");
+                format!("{}:{}", stem, l.line())
+            })
+            .unwrap_or_else(|| "unknown".to_string());
 
         let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
             s.to_string()
@@ -35,6 +39,7 @@ fn setup_panic_hook() {
 /// Must be called once at app startup before any inference function.
 pub fn init_models(model_dir: String) {
     setup_panic_hook();
+    ort::init().commit();
     // Silently ignore if already initialised (e.g. hot-reload, Riverpod async
     // re-run). The OnceLock already holds the correct path.
     let _ = crate::shared::MODEL_DIR.set(model_dir);

@@ -1,4 +1,4 @@
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:ai_gallery/core/debug/app_logger.dart';
 import 'package:ai_gallery/rust/api.dart' as rust_api;
@@ -6,7 +6,9 @@ import 'package:ai_gallery/rust/features/detection/detection_types.dart';
 import 'package:ai_gallery/rust/features/emotion/emotion_types.dart';
 import 'package:ai_gallery/rust/frb_generated.dart';
 import 'package:ai_gallery/rust/shared/types/bbox.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// Thin Dart wrapper over the Rust FFI bridge.
 ///
@@ -14,13 +16,57 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 /// Phase 1: Rust functions are all `todo!()` — calls will panic at runtime.
 /// Phase 2 will fill in the Rust implementations.
 class InferenceRepository {
-  /// Initialises the Flutter ↔ Rust bridge and all ONNX sessions from [modelDir].
+  /// Initialises the Flutter ↔ Rust bridge and all ONNX sessions.
   ///
+  /// Copies model assets to the documents directory on first launch,
+  /// then passes the resolved path to the Rust bridge.
   /// Must be called once at app startup before any inference method.
   /// Throws if the bridge fails to initialise or any model file is missing.
-  Future<void> initModels(String modelDir) async {
+  Future<void> initModels() async {
+    final modelDir = await _prepareModelDir();
     await RustLib.init();
     await rust_api.initModels(modelDir: modelDir);
+  }
+
+  Future<String> _prepareModelDir() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final modelDir = Directory('${dir.path}/models');
+    await modelDir.create(recursive: true);
+    AppLogger.pipeline(
+      'model dir: ${modelDir.path} | exists=${modelDir.existsSync()}',
+    );
+
+    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
+    final allAssets = manifest.listAssets();
+    AppLogger.pipeline('total assets in manifest: ${allAssets.length}');
+
+    final assets = allAssets
+        .where(
+          (k) =>
+              k.startsWith('assets/models/') &&
+              (k.endsWith('.onnx') || k.endsWith('.json')),
+        )
+        .toList();
+    AppLogger.pipeline('model assets matched: ${assets.length} → $assets');
+
+    for (final asset in assets) {
+      final dest = File('${modelDir.path}/${asset.split('/').last}');
+      if (dest.existsSync()) {
+        AppLogger.pipeline('skip (exists): ${dest.path}');
+        continue;
+      }
+      try {
+        final bytes = await rootBundle.load(asset);
+        await dest.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
+        AppLogger.pipeline(
+          'copied: ${dest.path} (${bytes.lengthInBytes} bytes)',
+        );
+      } catch (e, st) {
+        AppLogger.pipeline('FAILED to copy $asset', error: e, stackTrace: st);
+      }
+    }
+
+    return modelDir.path;
   }
 
   /// Computes a 512-dimensional CLIP image embedding from raw [pixels]
@@ -53,7 +99,11 @@ class InferenceRepository {
     required int height,
   }) async {
     try {
-      return await rust_api.detectObjects(pixels: pixels, width: width, height: height);
+      return await rust_api.detectObjects(
+        pixels: pixels,
+        width: width,
+        height: height,
+      );
     } on PanicException catch (e, st) {
       AppLogger.rust('detection', e.message, error: e, stackTrace: st);
       rethrow;
@@ -109,7 +159,11 @@ class InferenceRepository {
     required int height,
   }) async {
     try {
-      return await rust_api.computePhash(pixels: pixels, width: width, height: height);
+      return await rust_api.computePhash(
+        pixels: pixels,
+        width: width,
+        height: height,
+      );
     } on PanicException catch (e, st) {
       AppLogger.rust('phash', e.message, error: e, stackTrace: st);
       rethrow;

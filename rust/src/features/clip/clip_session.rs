@@ -13,12 +13,14 @@ pub fn get_image_session() -> &'static Mutex<Session> {
             .get()
             .expect("init_models() must be called before embed_image()");
         let path = format!("{}/mobileclip_s1_image_int8.onnx", model_dir);
+        eprintln!("[RUST::clip] loading image model from: {}", path);
         let session = Session::builder()
             .expect("Failed to create session builder")
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .expect("Failed to set optimization level")
             .commit_from_file(&path)
             .expect("Failed to load CLIP image model");
+        eprintln!("[RUST::clip] image model loaded ok");
         Mutex::new(session)
     })
 }

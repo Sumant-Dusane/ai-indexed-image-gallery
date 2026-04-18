@@ -5,18 +5,23 @@ use super::clip_session::{get_image_session, get_text_session, get_tokenizer};
 
 /// Returns a 512-dim L2-normalised CLIP image embedding.
 pub fn embed_image(pixels: Vec<u8>, width: u32, height: u32) -> Vec<f32> {
+    eprintln!("[RUST::clip] embed_image start: {}x{}", width, height);
     let preprocessed = preprocess_image(&pixels, width, height);
+    eprintln!("[RUST::clip] preprocess done");
 
     let tensor = Tensor::<f32>::from_array(([1usize, 3, 224, 224], preprocessed))
         .expect("Failed to create CLIP image input tensor");
+    eprintln!("[RUST::clip] tensor created, acquiring session lock");
 
     let mut session = get_image_session()
         .lock()
         .expect("CLIP image session mutex poisoned");
+    eprintln!("[RUST::clip] session locked, running inference");
 
     let outputs = session
         .run(ort::inputs!["image" => tensor])
         .expect("CLIP image inference failed");
+    eprintln!("[RUST::clip] inference done, extracting output");
 
     let raw: Vec<f32> = outputs["embedding"]
         .try_extract_array::<f32>()
@@ -24,6 +29,7 @@ pub fn embed_image(pixels: Vec<u8>, width: u32, height: u32) -> Vec<f32> {
         .iter()
         .copied()
         .collect();
+    eprintln!("[RUST::clip] embed_image done: {} dims", raw.len());
 
     l2_normalize(raw)
 }
