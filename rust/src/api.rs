@@ -36,12 +36,13 @@ fn setup_panic_hook() {
 }
 
 /// Stores the model directory path so ONNX sessions can load lazily on first use.
+/// `ort_lib_path` must point to the `libonnxruntime` shared library bundled
+/// with the app (e.g. the `.so` on Android or `.dylib` on macOS/iOS).
 /// Must be called once at app startup before any inference function.
 pub fn init_models(model_dir: String) {
     setup_panic_hook();
     ort::init().commit();
-    // Silently ignore if already initialised (e.g. hot-reload, Riverpod async
-    // re-run). The OnceLock already holds the correct path.
+    println!("[RUST] ORT initialized");
     let _ = crate::shared::MODEL_DIR.set(model_dir);
 }
 

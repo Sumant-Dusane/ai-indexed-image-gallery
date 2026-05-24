@@ -12,6 +12,8 @@ import 'shared/types/bbox.dart';
 // These functions are ignored because they are not marked as `pub`: `setup_panic_hook`
 
 /// Stores the model directory path so ONNX sessions can load lazily on first use.
+/// `ort_lib_path` must point to the `libonnxruntime` shared library bundled
+/// with the app (e.g. the `.so` on Android or `.dylib` on macOS/iOS).
 /// Must be called once at app startup before any inference function.
 Future<void> initModels({required String modelDir}) =>
     RustLib.instance.api.crateApiInitModels(modelDir: modelDir);
