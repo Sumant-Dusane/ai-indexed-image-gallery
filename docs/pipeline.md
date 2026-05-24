@@ -98,7 +98,6 @@ Gets unindexed count via `PhotosDbRepository(db).countPhotos()` → `total - ind
 Calculation:
 ```
 requiredBytes = unindexed × 3 KB   ← DB cost per remaining photo
-              + 90 MB               ← model extraction on first launch
 ```
 
 ### `_run()` flow (in AppStartup)
@@ -191,7 +190,7 @@ Within each priority: ORDER BY taken_at DESC
 STEP 1 — DEDUP
   Input:  asset id
   Action: fetch full-res pixel bytes from photo_manager
-          compute pHash via Rust bridge: computePHash(pixels, w, h)
+          compute pHash via InferenceRepository: computePHash(pixels, w, h)
           query: SELECT id FROM photos WHERE phash = ? AND indexed_at IS NOT NULL
   If duplicate found:
     UPDATE photos SET indexed_at = unixNow(), phash = ? WHERE id = ?
@@ -201,11 +200,11 @@ STEP 2 — PARALLEL INFERENCE
   Run these two concurrently (Future.wait):
 
   Task A — CLIP embedding:
-    call Rust: embedImage(pixels, w, h) → List<double> length 512
+    call InferenceRepository: embedImage(pixels, w, h) → List<double> length 512
     upsert into photo_clip_vss (photo_id, embedding)
 
   Task B — YOLO detection:
-    call Rust: detectObjects(pixels, w, h) → List<Detection>
+    call InferenceRepository: detectObjects(pixels, w, h) → List<Detection>
     insert all non-person detections into detections table
     collect person bounding boxes → pass to Step 3
 
@@ -214,12 +213,12 @@ STEP 3 — FACE PIPELINE
   For each person bounding box, run concurrently:
 
   Task C — face embed:
-    call Rust: embedFace(pixels, w, h, bbox) → List<double> length 128
+    call InferenceRepository: embedFace(pixels, w, h, bbox) → List<double> length 128
     insert into faces table (photo_id, bbox fields, cluster_id=NULL)
     insert into face_vss (face_id, embedding)
 
   Task D — emotion:
-    call Rust: classifyEmotion(pixels, w, h, bbox) → String
+    call InferenceRepository: classifyEmotion(pixels, w, h, bbox) → EmotionResult
     UPDATE faces SET emotion = ?, emotion_conf = ? WHERE id = <new face id>
 
 STEP 4 — MARK COMPLETE
@@ -233,7 +232,7 @@ STEP 4 — MARK COMPLETE
 - Process 4 images in parallel (use Dart Isolate pool or `compute()` x4)
 - Each image's Steps 2A+2B are concurrent within that image's isolate
 - Each image's Steps 3C+3D per face are concurrent within that image's isolate
-- Cap total concurrent Rust calls at 8 (4 images × 2 parallel tasks max)
+- Cap total concurrent inference calls at 8 (4 images × 2 parallel tasks max)
 
 ---
 

@@ -1,6 +1,4 @@
-import 'package:ai_gallery/rust/features/detection/detection_types.dart';
-import 'package:ai_gallery/rust/features/emotion/emotion_types.dart';
-import 'package:ai_gallery/rust/shared/types/bbox.dart';
+import 'package:ai_gallery/core/inference/inference_types.dart';
 
 /// Base for every probe pipeline step. [elapsed] is the wall-clock time
 /// for that specific step (parallel steps measure independently).

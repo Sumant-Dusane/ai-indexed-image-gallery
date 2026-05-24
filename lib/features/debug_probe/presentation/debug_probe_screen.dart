@@ -34,14 +34,17 @@ class _DebugProbeScreenState extends ConsumerState<DebugProbeScreen> {
     );
     if (picked == null) return;
 
-    final thumb =
-        await picked.thumbnailDataWithSize(const ThumbnailSize(200, 200));
+    final thumb = await picked.thumbnailDataWithSize(
+      const ThumbnailSize(200, 200),
+    );
     if (!mounted) return;
     setState(() {
       _selectedAsset = picked;
       _thumbnailBytes = thumb;
     });
-    ref.read(debugProbeNotifierProvider.notifier).updateState(const DebugProbeState());
+    ref
+        .read(debugProbeNotifierProvider.notifier)
+        .updateState(const DebugProbeState());
   }
 
   Future<void> _runProbe() async {
@@ -77,10 +80,7 @@ class _DebugProbeScreenState extends ConsumerState<DebugProbeScreen> {
       ),
       body: Column(
         children: [
-          _ImagePickerCard(
-            thumbnailBytes: _thumbnailBytes,
-            onPick: _pickImage,
-          ),
+          _ImagePickerCard(thumbnailBytes: _thumbnailBytes, onPick: _pickImage),
           const Divider(height: 1),
           Expanded(child: _StepList(state: state)),
         ],
@@ -146,18 +146,20 @@ class _StepList extends StatelessWidget {
   Widget _imageLoadCard(ImageLoadStep s) {
     final kb = (s.fileSizeBytes / 1024).toStringAsFixed(1);
     final mb = (s.fileSizeBytes / (1024 * 1024)).toStringAsFixed(2);
-    final sizeLabel = s.fileSizeBytes >= 1024 * 1024
-        ? '$mb MB'
-        : '$kb KB';
+    final sizeLabel = s.fileSizeBytes >= 1024 * 1024 ? '$mb MB' : '$kb KB';
 
     return ProbeSection(
       title: 'Image Loaded',
       accentColor: Colors.teal,
       timing: s.elapsed,
-      copyAllText: 'dimensions: ${s.width} × ${s.height}\nfile_size: $sizeLabel (${s.fileSizeBytes} bytes)',
+      copyAllText:
+          'dimensions: ${s.width} × ${s.height}\nfile_size: $sizeLabel (${s.fileSizeBytes} bytes)',
       children: [
         CopyValueRow(label: 'dimensions', value: '${s.width} × ${s.height} px'),
-        CopyValueRow(label: 'file size', value: '$sizeLabel (${s.fileSizeBytes} bytes)'),
+        CopyValueRow(
+          label: 'file size',
+          value: '$sizeLabel (${s.fileSizeBytes} bytes)',
+        ),
       ],
     );
   }
@@ -169,7 +171,10 @@ class _StepList extends StatelessWidget {
       timing: s.elapsed,
       copyAllText: 'phash: ${s.phash}',
       children: [
-        CopyValueRow(label: 'algorithm', value: 'DCT 32×32 → 8×8 top-left → 64-bit'),
+        CopyValueRow(
+          label: 'algorithm',
+          value: 'DCT 32×32 → 8×8 top-left → 64-bit',
+        ),
         CopyValueRow(label: 'phash', value: s.phash),
       ],
     );
@@ -177,10 +182,11 @@ class _StepList extends StatelessWidget {
 
   Widget _clipCard(ClipStep s) {
     return ProbeSection(
-      title: 'MobileCLIP — Image Embedding',
+      title: 'MobileCLIP',
       accentColor: Colors.blue,
       timing: s.elapsed,
-      copyAllText: 'clip_embedding: [${s.embedding.map((v) => v.toStringAsFixed(6)).join(', ')}]',
+      copyAllText:
+          'clip_embedding: [${s.embedding.map((v) => v.toStringAsFixed(6)).join(', ')}]',
       children: [
         CopyValueRow(label: 'model input', value: '[1, 3, 224, 224] float32'),
         CopyValueRow(
@@ -196,10 +202,12 @@ class _StepList extends StatelessWidget {
   Widget _yoloCard(YoloStep s) {
     final copyLines = [
       'non_person (${s.nonPersonDetections.length}):',
-      ...s.nonPersonDetections.map((d) =>
-          '  ${d.label} ${(d.confidence * 100).toStringAsFixed(1)}%'
-          '  x=${d.bbox.x.toStringAsFixed(3)} y=${d.bbox.y.toStringAsFixed(3)}'
-          ' w=${d.bbox.w.toStringAsFixed(3)} h=${d.bbox.h.toStringAsFixed(3)}'),
+      ...s.nonPersonDetections.map(
+        (d) =>
+            '  ${d.label} ${(d.confidence * 100).toStringAsFixed(1)}%'
+            '  x=${d.bbox.x.toStringAsFixed(3)} y=${d.bbox.y.toStringAsFixed(3)}'
+            ' w=${d.bbox.w.toStringAsFixed(3)} h=${d.bbox.h.toStringAsFixed(3)}',
+      ),
       'persons (${s.personDetections.length}):',
       ...s.personDetections.asMap().entries.map((e) {
         final b = e.value.bbox;
@@ -211,13 +219,16 @@ class _StepList extends StatelessWidget {
     ].join('\n');
 
     return ProbeSection(
-      title: 'YOLOv8 — Object Detection',
+      title: 'YOLOv8',
       accentColor: Colors.orange,
       timing: s.elapsed,
       copyAllText: copyLines,
       children: [
         CopyValueRow(label: 'model input', value: '[1, 3, 640, 640] float32'),
-        CopyValueRow(label: 'preprocess', value: 'letterbox 640×640 → CHW → ÷255'),
+        CopyValueRow(
+          label: 'preprocess',
+          value: 'letterbox 640×640 → CHW → ÷255',
+        ),
         CopyValueRow(label: 'NMS thresholds', value: 'conf 0.35 / IoU 0.45'),
         CopyValueRow(
           label: 'non-person',
@@ -226,7 +237,8 @@ class _StepList extends StatelessWidget {
         ...s.nonPersonDetections.map(
           (d) => CopyValueRow(
             label: '  ${d.label}',
-            value: '${(d.confidence * 100).toStringAsFixed(1)}%  '
+            value:
+                '${(d.confidence * 100).toStringAsFixed(1)}%  '
                 'x=${d.bbox.x.toStringAsFixed(3)} y=${d.bbox.y.toStringAsFixed(3)} '
                 'w=${d.bbox.w.toStringAsFixed(3)} h=${d.bbox.h.toStringAsFixed(3)}',
           ),
@@ -238,7 +250,8 @@ class _StepList extends StatelessWidget {
         ...s.personDetections.asMap().entries.map(
           (e) => CopyValueRow(
             label: '  person ${e.key + 1}',
-            value: '${(e.value.confidence * 100).toStringAsFixed(1)}%  '
+            value:
+                '${(e.value.confidence * 100).toStringAsFixed(1)}%  '
                 'x=${e.value.bbox.x.toStringAsFixed(3)} y=${e.value.bbox.y.toStringAsFixed(3)} '
                 'w=${e.value.bbox.w.toStringAsFixed(3)} h=${e.value.bbox.h.toStringAsFixed(3)}',
           ),
@@ -268,22 +281,31 @@ class _StepList extends StatelessWidget {
         CopyValueRow(label: 'model input', value: '[1, 3, 112, 112] float32'),
         CopyValueRow(
           label: 'preprocess',
-          value: 'crop bbox+20% → resize 112×112 → (x−127.5)/128 → CHW → L2-norm',
+          value:
+              'crop bbox+20% → resize 112×112 → (x−127.5)/128 → CHW → L2-norm',
         ),
         CopyValueRow(
           label: 'person bbox',
-          value: 'x=${b.x.toStringAsFixed(3)} y=${b.y.toStringAsFixed(3)} '
+          value:
+              'x=${b.x.toStringAsFixed(3)} y=${b.y.toStringAsFixed(3)} '
               'w=${b.w.toStringAsFixed(3)} h=${b.h.toStringAsFixed(3)}',
         ),
         VectorDisplay(label: 'face embedding', values: s.faceEmbedding),
         const SizedBox(height: 8),
-        _subHeader('EfficientNet-B0 — Emotion', Colors.amber.shade700, s.emotionElapsed),
+        _subHeader(
+          'EfficientNet-B0 — Emotion',
+          Colors.amber.shade700,
+          s.emotionElapsed,
+        ),
         CopyValueRow(label: 'model input', value: '[1, 3, 224, 224] float32'),
         CopyValueRow(
           label: 'preprocess',
           value: 'crop bbox+20% → resize 224×224 → ÷255 → CHW',
         ),
-        CopyValueRow(label: 'output shape', value: '[1, 8] logits → softmax → argmax'),
+        CopyValueRow(
+          label: 'output shape',
+          value: '[1, 8] logits → softmax → argmax',
+        ),
         CopyValueRow(label: 'predicted label', value: s.emotion.label),
         CopyValueRow(
           label: 'confidence',
@@ -341,7 +363,9 @@ class _ImagePickerCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Theme.of(context).colorScheme.outline),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
               ),
               clipBehavior: Clip.hardEdge,
               child: thumbnailBytes != null
@@ -355,7 +379,9 @@ class _ImagePickerCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  thumbnailBytes != null ? 'Image selected' : 'No image selected',
+                  thumbnailBytes != null
+                      ? 'Image selected'
+                      : 'No image selected',
                   style: Theme.of(context).textTheme.titleSmall,
                 ),
                 const SizedBox(height: 6),
@@ -418,8 +444,9 @@ class _AssetPickerSheet extends StatelessWidget {
               itemBuilder: (_, i) => GestureDetector(
                 onTap: () => Navigator.of(context).pop(assets[i]),
                 child: FutureBuilder<Uint8List?>(
-                  future: assets[i]
-                      .thumbnailDataWithSize(const ThumbnailSize(120, 120)),
+                  future: assets[i].thumbnailDataWithSize(
+                    const ThumbnailSize(120, 120),
+                  ),
                   builder: (_, snap) => snap.data != null
                       ? Image.memory(snap.data!, fit: BoxFit.cover)
                       : const ColoredBox(color: Color(0xFF1A1A1A)),

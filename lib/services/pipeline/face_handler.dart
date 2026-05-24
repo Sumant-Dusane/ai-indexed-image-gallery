@@ -1,8 +1,8 @@
 import 'package:ai_gallery/core/debug/app_logger.dart';
+import 'package:ai_gallery/core/inference/inference_types.dart';
 import 'package:ai_gallery/core/repositories/embeddings_repository.dart';
 import 'package:ai_gallery/core/repositories/faces_repository.dart';
 import 'package:ai_gallery/core/repositories/inference_repository.dart';
-import 'package:ai_gallery/rust/shared/types/bbox.dart';
 
 import 'image_processing_context.dart';
 import 'indexing_handler.dart';

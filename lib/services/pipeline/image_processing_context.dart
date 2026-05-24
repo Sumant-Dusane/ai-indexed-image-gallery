@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:ai_gallery/rust/shared/types/bbox.dart';
+import 'package:ai_gallery/core/inference/inference_types.dart';
 
 /// Mutable data carrier passed through the [IndexingHandler] chain.
 ///

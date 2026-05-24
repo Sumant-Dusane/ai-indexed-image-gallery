@@ -1,9 +1,8 @@
+import 'package:ai_gallery/core/inference/inference_types.dart';
 import 'package:ai_gallery/core/repositories/detections_repository.dart';
 import 'package:ai_gallery/core/repositories/embeddings_repository.dart';
 import 'package:ai_gallery/core/repositories/faces_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
-import 'package:ai_gallery/rust/features/detection/detection_types.dart';
-import 'package:ai_gallery/rust/shared/types/bbox.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 /// A single face's captured data.

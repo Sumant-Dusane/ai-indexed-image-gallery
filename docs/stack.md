@@ -24,20 +24,18 @@ iOS and Android only. No web, macOS, Linux, or Windows support.
 | `workmanager` | ^0.5.0 | Background tasks (Android WorkManager + iOS BGTask) |
 | `sqlite3` | ^3.2.0 | SQLite access (lower-level FFI binding required by sqlite_vector) |
 | `sqlite_vector` | ^0.9.93 | Vector similarity search extension (replaces sqlite_vec) |
-| `flutter_rust_bridge` | v2 | Dart ↔ Rust FFI bridge |
+| `flutter_onnxruntime` | ^1.7.1 | ONNX Runtime session loading and inference from Flutter |
+| `image` | ^4.7.2 | Dart image resize/crop/letterbox/grayscale preprocessing |
+| `dart_sentencepiece_tokenizer` | ^1.3.2 | HuggingFace tokenizer JSON loading for CLIP text tokens |
 | `path_provider` | ^2.1.0 | DB file path |
 | `shared_preferences` | ^2.2.0 | Onboarding flag, simple key-value persistence |
 
-## Rust
+## Inference
 
-| Crate | Version | Purpose |
-|---|---|---|
-| `flutter_rust_bridge` | v2 | Bridge codegen |
-| `ort` | ^2.0 | ONNX Runtime bindings |
-| `image` | ^0.25 | Image resizing + pixel manipulation |
-| `rayon` | ^1.10 | Parallel batch inference |
-| `once_cell` | ^1.19 | Lazy static ONNX sessions (`OnceLock`) |
-| `ndarray` | ^0.16 | Tensor construction |
+- ONNX model files stay bundled in `assets/models/`.
+- `lib/core/repositories/inference_repository.dart` is the single app-facing inference seam.
+- Dart owns preprocessing, postprocessing, pHash, and tensor packing.
+- `flutter_onnxruntime` owns native ONNX session execution.
 
 ## Storage
 
@@ -61,7 +59,7 @@ dart run build_runner build --delete-conflicting-outputs
 ## Why these choices (do not revisit)
 
 - **ONNX over TFLite**: single model format, INT8 support, same file on iOS + Android
-- **Rust over Dart for inference**: no GC pauses during embedding, rayon parallelism, deterministic memory
+- **Flutter ONNX Runtime for inference**: one Flutter-managed inference seam for model loading, tensor execution, and preprocessing/postprocessing
 - **sqlite-vec over Chroma/Weaviate**: no extra binary, hybrid SQL+vector in one query
 - **DBSCAN over k-means**: no need to specify cluster count, handles noise faces naturally
 - **Rule-based query parsing over on-device LLM**: faster, smaller, predictable, sufficient

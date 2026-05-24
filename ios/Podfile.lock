@@ -1,20 +1,21 @@
 PODS:
   - Flutter (1.0.0)
+  - flutter_onnxruntime (0.0.1):
+    - Flutter
+    - onnxruntime-objc (= 1.22.0)
   - integration_test (0.0.1):
     - Flutter
-  - onnxruntime-c (1.18.0)
-  - onnxruntime-objc (1.18.0):
-    - onnxruntime-objc/Core (= 1.18.0)
-  - onnxruntime-objc/Core (1.18.0):
-    - onnxruntime-c (= 1.18.0)
+  - onnxruntime-c (1.22.0)
+  - onnxruntime-objc (1.22.0):
+    - onnxruntime-objc/Core (= 1.22.0)
+  - onnxruntime-objc/Core (1.22.0):
+    - onnxruntime-c (= 1.22.0)
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
   - photo_manager (3.9.0):
     - Flutter
     - FlutterMacOS
-  - rust_lib_ai_gallery (0.0.1):
-    - Flutter
   - shared_preferences_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -23,11 +24,10 @@ PODS:
 
 DEPENDENCIES:
   - Flutter (from `Flutter`)
+  - flutter_onnxruntime (from `.symlinks/plugins/flutter_onnxruntime/ios`)
   - integration_test (from `.symlinks/plugins/integration_test/ios`)
-  - onnxruntime-objc (= 1.18.0)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - photo_manager (from `.symlinks/plugins/photo_manager/darwin`)
-  - rust_lib_ai_gallery (from `.symlinks/plugins/rust_lib_ai_gallery/ios`)
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - workmanager (from `.symlinks/plugins/workmanager/ios`)
 
@@ -39,14 +39,14 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
+  flutter_onnxruntime:
+    :path: ".symlinks/plugins/flutter_onnxruntime/ios"
   integration_test:
     :path: ".symlinks/plugins/integration_test/ios"
   path_provider_foundation:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   photo_manager:
     :path: ".symlinks/plugins/photo_manager/darwin"
-  rust_lib_ai_gallery:
-    :path: ".symlinks/plugins/rust_lib_ai_gallery/ios"
   shared_preferences_foundation:
     :path: ".symlinks/plugins/shared_preferences_foundation/darwin"
   workmanager:
@@ -54,15 +54,15 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  flutter_onnxruntime: 515c2ab17b67fb027964ebbf2d02329771a482de
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  onnxruntime-c: a909204639a1f035f575127ac406f781ac797c9c
-  onnxruntime-objc: b6fab0f1787aa6f7190c2013f03037df4718bd8b
+  onnxruntime-c: 7f778680e96145956c0a31945f260321eed2611a
+  onnxruntime-objc: 83d28b87525bd971259a66e153ea32b5d023de19
   path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   photo_manager: 25fd77df14f4f0ba5ef99e2c61814dde77e2bceb
-  rust_lib_ai_gallery: d9ebc086dbce5fb043da2a84f8344fc0feacd788
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   workmanager: 01be2de7f184bd15de93a1812936a2b7f42ef07e
 
-PODFILE CHECKSUM: 874fad156c3363658594ffee27f204ab77e8edf5
+PODFILE CHECKSUM: c0915517eae1a513480956f02c7781054ca94770
 
 COCOAPODS: 1.16.2
