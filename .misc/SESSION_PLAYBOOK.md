@@ -3,13 +3,11 @@
 ## Context
 Exact prompts to paste into coding agents for building the AI Gallery app across ~15 sessions spanning 6 phases. Includes when to clear context, what to verify, and how to recover.
 
-## Current Migration State
+## Current Project State
 
-- The project is being migrated from Rust/ORT/`flutter_rust_bridge` to Flutter ONNX Runtime.
-- Current product phase remains **Phase 3 — Indexing Service** after migration.
-- Phases 1 and 2 are historical implementation phases and must not be rerun during or after this migration.
-- Future sessions should continue from the current Phase 3 state and call inference through `lib/core/repositories/inference_repository.dart`.
-- Migration work must not implement Phase 4, Phase 5, Phase 6, UI polish, schema changes, or product improvements.
+- Current product phase: **Phase 3 — Indexing Service**.
+- Inference is implemented through `lib/core/repositories/inference_repository.dart`.
+- Future sessions should continue from the current Phase 3 state unless `AGENTS.md` says a phase was completed.
 
 ---
 
@@ -86,17 +84,85 @@ After this, `flutter run` should launch and show the 3-tab bottom navigation wit
 
 ---
 
-### Session 1C: Historical Native Inference Setup
+### Session 1C: Inference seam setup
 
-Completed before the Flutter ONNX migration and retained only in Git history.
-Do not rerun this session on the migration branch.
+```
+Phase 1 — Skeleton continued. Read docs/stack.md, docs/skeleton.md, docs/models.md, and lib/core/AGENTS.md.
+
+Previous sessions created the full Flutter side. Now build the inference seam:
+
+1. lib/core/inference/inference_types.dart — BBox, Detection, EmotionResult DTOs
+2. lib/core/repositories/inference_repository.dart — public API from docs/models.md with stubbed methods
+3. Wire providers and callers through InferenceRepository only
+4. Verify app startup still works with placeholder inference values
+
+Touch only inference DTOs, inference repository, and provider wiring.
+```
 
 ---
 
-## Phase 2 — Historical Native Inference
+## Phase 2 — Flutter ONNX Inference
 
-Completed before the Flutter ONNX migration and retained only in Git history.
-Do not rerun Phase 2 prompts on the migration branch. Flutter ONNX inference now lives behind `lib/core/repositories/inference_repository.dart`.
+### Session 2A: CLIP model (image + text embedding)
+
+```
+Phase 2 — Flutter ONNX inference. Read docs/models.md and lib/core/AGENTS.md.
+
+Phase 1 is committed. Build CLIP inference behind InferenceRepository:
+
+1. Load MobileCLIP image and text ONNX sessions from assets.
+2. Implement image preprocessing exactly from docs/models.md.
+3. Implement text tokenization from assets/models/bpe_vocab.json, pad/truncate to 77 ids.
+4. Run ONNX inference and L2-normalize both 512-dim outputs.
+
+Touch only lib/core/inference/ and lib/core/repositories/inference_repository.dart.
+```
+
+**Verify:** `flutter analyze` clean except known unrelated infos.
+
+**Commit, then clear context.**
+
+---
+
+### Session 2B: YOLO object detection + NMS
+
+```
+Phase 2 — Flutter ONNX inference continued. Read docs/models.md and lib/core/AGENTS.md.
+
+CLIP is committed. Build YOLO detection behind InferenceRepository:
+
+1. Implement 640x640 letterbox preprocessing.
+2. Run yolov8n_int8.onnx with input/output names from docs/models.md.
+3. Parse [1,84,8400], apply confidence threshold 0.35 and IoU threshold 0.45.
+4. Filter to allowed classes and return normalized BBox values.
+
+Touch only lib/core/inference/ and lib/core/repositories/inference_repository.dart.
+```
+
+**Verify:** `flutter analyze` clean except known unrelated infos.
+
+**Commit, then clear context.**
+
+---
+
+### Session 2C: Face embedding + emotion + pHash
+
+```
+Phase 2 — Flutter ONNX inference continued. Read docs/models.md and lib/core/AGENTS.md.
+
+CLIP and YOLO are committed. Build remaining inference methods:
+
+1. Implement MobileFaceNet crop/resize/normalize and L2-normalized 128-dim output.
+2. Implement emotion crop/resize/normalize, softmax, label mapping, and confidence.
+3. Implement pHash in Dart exactly from docs/models.md.
+4. Keep all app callers using InferenceRepository only.
+
+Touch only lib/core/inference/ and lib/core/repositories/inference_repository.dart.
+```
+
+**Verify:** `flutter analyze` clean except known unrelated infos.
+
+**Commit. Update AGENTS.md: Phase 2 → complete. Clear context.**
 
 ---
 
@@ -345,10 +411,10 @@ I want to change [specific thing] from [old] to [new]. This contradicts docs/[fi
 ## Phase 1 — Skeleton
 - [x] 1A: Flutter project + core layer → commit: ___
 - [x] 1B: Database + repos + placeholders → commit: ___
-- [x] 1C: Historical Rust crate + bridge → commit: ___
+- [x] 1C: Inference seam setup → commit: ___
 - [x] Update AGENTS.md phase line
 
-## Phase 2 — Historical Rust Inference
+## Phase 2 — Flutter ONNX Inference
 - [x] 2A: CLIP (embed_image, embed_text) → commit: ___
 - [x] 2B: YOLO (detect_objects + NMS) → commit: ___
 - [x] 2C: Face + emotion + pHash → commit: ___

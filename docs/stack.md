@@ -36,7 +36,6 @@ iOS and Android only. No web, macOS, Linux, or Windows support.
 - `lib/core/repositories/inference_repository.dart` is the single app-facing inference seam.
 - Dart owns preprocessing, postprocessing, pHash, and tensor packing.
 - `flutter_onnxruntime` owns native ONNX session execution.
-- No Rust crate, Rust bridge, generated bridge code, or local Rust plugin is part of the active stack.
 
 ## Storage
 
@@ -60,7 +59,7 @@ dart run build_runner build --delete-conflicting-outputs
 ## Why these choices (do not revisit)
 
 - **ONNX over TFLite**: single model format, INT8 support, same file on iOS + Android
-- **Flutter ONNX Runtime over a local native bridge**: one Flutter-managed inference seam, no generated bridge layer, no local native plugin
+- **Flutter ONNX Runtime for inference**: one Flutter-managed inference seam for model loading, tensor execution, and preprocessing/postprocessing
 - **sqlite-vec over Chroma/Weaviate**: no extra binary, hybrid SQL+vector in one query
 - **DBSCAN over k-means**: no need to specify cluster count, handles noise faces naturally
 - **Rule-based query parsing over on-device LLM**: faster, smaller, predictable, sufficient

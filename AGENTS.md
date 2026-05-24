@@ -55,7 +55,6 @@ This rule applies to everything in `docs/`: schema, function signatures, preproc
 - No full-resolution images in SQLite — embeddings and metadata only.
 - Do not create tables, models, or providers not defined in `docs/schema.md`.
 - Do not modify files in `docs/` unless the user explicitly overrides a spec decision (see "Spec compliance" above).
-- During the Rust-to-Flutter ONNX migration, do not implement future phase scope or unrelated improvements.
 - After creating or modifying `@freezed` models or `@riverpod` providers, run: `dart run build_runner build --delete-conflicting-outputs`
 
 ---
