@@ -79,10 +79,10 @@ const Map<String, String> emotionAliases = {
 
 ---
 
-### Step 2 — Encode text (Rust)
+### Step 2 — Encode text
 
 ```dart
-final embedding = await rustBridge.embedText(intent.cleanQuery);
+final embedding = await inferenceRepository.embedText(intent.cleanQuery);
 // Returns List<double> length 512, L2-normalised
 // Skip this step if cleanQuery is empty after Step 1 stripping
 ```

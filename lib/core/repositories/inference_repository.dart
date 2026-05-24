@@ -1,135 +1,131 @@
-import 'dart:io';
+import 'dart:convert';
+import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:ai_gallery/core/debug/app_logger.dart';
-import 'package:ai_gallery/rust/api.dart' as rust_api;
-import 'package:ai_gallery/rust/features/detection/detection_types.dart';
-import 'package:ai_gallery/rust/features/emotion/emotion_types.dart';
-import 'package:ai_gallery/rust/frb_generated.dart';
-import 'package:ai_gallery/rust/shared/types/bbox.dart';
+import 'package:ai_gallery/core/inference/image_tensor_utils.dart';
+import 'package:ai_gallery/core/inference/inference_types.dart';
+import 'package:ai_gallery/core/inference/phash.dart';
+import 'package:ai_gallery/core/inference/yolo_postprocess.dart';
+import 'package:dart_sentencepiece_tokenizer/dart_sentencepiece_tokenizer.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 
-/// Thin Dart wrapper over the Rust FFI bridge.
+/// Single app-facing inference seam.
 ///
-/// Callers use FRB bridge types directly — no intermediate model layer needed.
-/// Phase 1: Rust functions are all `todo!()` — calls will panic at runtime.
-/// Phase 2 will fill in the Rust implementations.
+/// Callers pass RGB24 pixels and receive Dart-owned DTOs. ONNX Runtime sessions,
+/// preprocessing, postprocessing, text tokenisation, and pHash stay hidden here.
 class InferenceRepository {
-  /// Initialises the Flutter ↔ Rust bridge and all ONNX sessions.
+  final OnnxRuntime _runtime = OnnxRuntime();
+
+  OrtSession? _clipImageSession;
+  OrtSession? _clipTextSession;
+  OrtSession? _faceSession;
+  OrtSession? _yoloSession;
+  OrtSession? _emotionSession;
+  dynamic _tokenizer;
+  bool _initialized = false;
+
+  /// Initialises all ONNX sessions and the CLIP tokenizer.
   ///
-  /// Copies model assets to the documents directory on first launch,
-  /// then passes the resolved path to the Rust bridge.
-  /// Must be called once at app startup before any inference method.
-  /// Throws if the bridge fails to initialise or any model file is missing.
+  /// Must be called once at app startup before inference methods. Safe to call
+  /// multiple times; subsequent calls are no-ops.
   Future<void> initModels() async {
-    final modelDir = await _prepareModelDir();
-    await RustLib.init();
-    await rust_api.initModels(modelDir: modelDir);
-  }
+    if (_initialized) return;
+    try {
+      _clipImageSession = await _runtime.createSessionFromAsset(
+        'assets/models/mobileclip_s1_image_int8.onnx',
+      );
+      _clipTextSession = await _runtime.createSessionFromAsset(
+        'assets/models/mobileclip_s1_text_int8.onnx',
+      );
+      _faceSession = await _runtime.createSessionFromAsset(
+        'assets/models/mobilefacenet_int8.onnx',
+      );
+      _yoloSession = await _runtime.createSessionFromAsset(
+        'assets/models/yolov8n_int8.onnx',
+      );
+      _emotionSession = await _runtime.createSessionFromAsset(
+        'assets/models/emotion_enet_b0_int8.onnx',
+      );
 
-  Future<String> _prepareModelDir() async {
-    final dir = await getApplicationDocumentsDirectory();
-    final modelDir = Directory('${dir.path}/models');
-    await modelDir.create(recursive: true);
-    AppLogger.pipeline(
-      'model dir: ${modelDir.path} | exists=${modelDir.existsSync()}',
-    );
-
-    final manifest = await AssetManifest.loadFromAssetBundle(rootBundle);
-    final allAssets = manifest.listAssets();
-    AppLogger.pipeline('total assets in manifest: ${allAssets.length}');
-
-    final assets = allAssets
-        .where(
-          (k) =>
-              k.startsWith('assets/models/') &&
-              (k.endsWith('.onnx') || k.endsWith('.json')),
-        )
-        .toList();
-    AppLogger.pipeline('model assets matched: ${assets.length} → $assets');
-
-    for (final asset in assets) {
-      final dest = File('${modelDir.path}/${asset.split('/').last}');
-      if (dest.existsSync()) {
-        AppLogger.pipeline('skip (exists): ${dest.path}');
-        continue;
-      }
-      try {
-        final bytes = await rootBundle.load(asset);
-        await dest.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
-        AppLogger.pipeline(
-          'copied: ${dest.path} (${bytes.lengthInBytes} bytes)',
-        );
-      } catch (e, st) {
-        AppLogger.pipeline('FAILED to copy $asset', error: e, stackTrace: st);
-      }
+      final String tokenizerJson = await rootBundle.loadString(
+        'assets/models/bpe_vocab.json',
+      );
+      _tokenizer = TokenizerJsonLoader.fromJsonString(
+        _normalizeTokenizerJsonForLoader(tokenizerJson),
+      );
+      _initialized = true;
+    } catch (e, st) {
+      AppLogger.inference(
+        'init',
+        'model initialisation failed',
+        error: e,
+        stackTrace: st,
+      );
+      rethrow;
     }
-
-    return modelDir.path;
   }
 
-  /// Computes a 512-dimensional CLIP image embedding from raw [pixels]
-  /// (RGB24, row-major) of size [width]×[height].
+  /// Computes a 512-dimensional CLIP image embedding from raw RGB24 pixels.
   Future<List<double>> embedImage({
     required Uint8List pixels,
     required int width,
     required int height,
-  }) async {
-    try {
-      final result = await rust_api.embedImage(
-        pixels: pixels,
-        width: width,
-        height: height,
+  }) {
+    return _guard('clip-image', () async {
+      await initModels();
+      final input = preprocessClipImage(pixels, width, height);
+      final raw = await _runVector(
+        session: _clipImageSession!,
+        inputName: 'image',
+        input: input,
+        shape: const [1, 3, 224, 224],
+        outputName: 'embedding',
       );
-      return result.toList();
-    } on PanicException catch (e, st) {
-      AppLogger.rust('clip', e.message, error: e, stackTrace: st);
-      rethrow;
-    }
+      return l2Normalize(raw);
+    });
   }
 
-  /// Runs YOLO object detection on raw [pixels].
-  ///
-  /// Returns [Detection] instances from the FRB bridge.
-  /// Callers (IndexingService) add [photoId] when persisting to the DB.
+  /// Runs YOLO object detection on raw RGB24 pixels.
   Future<List<Detection>> detectObjects({
     required Uint8List pixels,
     required int width,
     required int height,
-  }) async {
-    try {
-      return await rust_api.detectObjects(
-        pixels: pixels,
-        width: width,
-        height: height,
+  }) {
+    return _guard('detection', () async {
+      await initModels();
+      final letterbox = preprocessYolo(pixels, width, height);
+      final raw = await _runVector(
+        session: _yoloSession!,
+        inputName: 'images',
+        input: letterbox.data,
+        shape: const [1, 3, 640, 640],
+        outputName: 'output0',
       );
-    } on PanicException catch (e, st) {
-      AppLogger.rust('detection', e.message, error: e, stackTrace: st);
-      rethrow;
-    }
+      return parseYoloOutput(raw, letterbox, width, height);
+    });
   }
 
-  /// Computes a 128-dimensional face embedding from the face region described
-  /// by [bbox] (normalised 0..1 coordinates).
+  /// Computes a 128-dimensional face embedding from the face region.
   Future<List<double>> embedFace({
     required Uint8List pixels,
     required int width,
     required int height,
     required BBox bbox,
-  }) async {
-    try {
-      final result = await rust_api.embedFace(
-        pixels: pixels,
-        width: width,
-        height: height,
-        bbox: bbox,
+  }) {
+    return _guard('face', () async {
+      await initModels();
+      final input = preprocessFace(pixels, width, height, bbox);
+      final raw = await _runVector(
+        session: _faceSession!,
+        inputName: 'face',
+        input: input,
+        shape: const [1, 3, 112, 112],
+        outputName: 'embedding',
       );
-      return result.toList();
-    } on PanicException catch (e, st) {
-      AppLogger.rust('face', e.message, error: e, stackTrace: st);
-      rethrow;
-    }
+      return l2Normalize(raw);
+    });
   }
 
   /// Classifies the emotion in the face region described by [bbox].
@@ -138,46 +134,147 @@ class InferenceRepository {
     required int width,
     required int height,
     required BBox bbox,
-  }) async {
-    try {
-      return await rust_api.classifyEmotion(
-        pixels: pixels,
-        width: width,
-        height: height,
-        bbox: bbox,
+  }) {
+    return _guard('emotion', () async {
+      await initModels();
+      final input = preprocessEmotion(pixels, width, height, bbox);
+      final logits = await _runVector(
+        session: _emotionSession!,
+        inputName: 'face',
+        input: input,
+        shape: const [1, 3, 224, 224],
+        outputName: 'logits',
       );
-    } on PanicException catch (e, st) {
-      AppLogger.rust('emotion', e.message, error: e, stackTrace: st);
-      rethrow;
-    }
+      final probs = _softmax(logits);
+      var bestIdx = 0;
+      for (var i = 1; i < probs.length; i++) {
+        if (probs[i] > probs[bestIdx]) bestIdx = i;
+      }
+      return EmotionResult(
+        label: bestIdx == 7 ? 'neutral' : _emotionLabels[bestIdx],
+        confidence: probs[bestIdx],
+      );
+    });
   }
 
-  /// Computes a 64-bit perceptual hash for [pixels], returned as a 16-char hex string.
+  /// Computes a 64-bit perceptual hash, returned as a 16-char hex string.
   Future<String> computePhash({
     required Uint8List pixels,
     required int width,
     required int height,
-  }) async {
-    try {
-      return await rust_api.computePhash(
-        pixels: pixels,
-        width: width,
-        height: height,
-      );
-    } on PanicException catch (e, st) {
-      AppLogger.rust('phash', e.message, error: e, stackTrace: st);
-      rethrow;
-    }
+  }) {
+    return _guard('phash', () async => computePhashDart(pixels, width, height));
   }
 
   /// Computes a 512-dimensional CLIP text embedding for [query].
-  Future<List<double>> embedText(String query) async {
+  Future<List<double>> embedText(String query) {
+    return _guard('clip-text', () async {
+      await initModels();
+      final encoding = _tokenizer.encode(query);
+      final ids = List<int>.from(encoding.ids as Iterable);
+      if (ids.length > 77) {
+        ids.removeRange(77, ids.length);
+      }
+      while (ids.length < 77) {
+        ids.add(0);
+      }
+      final raw = await _runVector(
+        session: _clipTextSession!,
+        inputName: 'tokens',
+        input: Int32List.fromList(ids),
+        shape: const [1, 77],
+        outputName: 'embedding',
+      );
+      return l2Normalize(raw);
+    });
+  }
+
+  Future<List<double>> _runVector({
+    required OrtSession session,
+    required String inputName,
+    required dynamic input,
+    required List<int> shape,
+    required String outputName,
+  }) async {
+    final inputValue = await OrtValue.fromList(input, shape);
+    Map<String, OrtValue>? outputs;
     try {
-      final result = await rust_api.embedText(query: query);
-      return result.toList();
-    } on PanicException catch (e, st) {
-      AppLogger.rust('clip', e.message, error: e, stackTrace: st);
+      outputs = await session.run({inputName: inputValue});
+      final output = outputs[outputName] ?? _singleOutput(outputs, outputName);
+      if (output == null) {
+        throw StateError(
+          'ONNX output "$outputName" not found. '
+          'Available outputs: ${outputs.keys.join(', ')}',
+        );
+      }
+      final raw = await output.asFlattenedList();
+      return raw.map((v) => (v as num).toDouble()).toList(growable: false);
+    } finally {
+      await inputValue.dispose();
+      if (outputs != null) {
+        for (final value in outputs.values) {
+          await value.dispose();
+        }
+      }
+    }
+  }
+
+  Future<T> _guard<T>(String module, Future<T> Function() run) async {
+    try {
+      return await run();
+    } catch (e, st) {
+      AppLogger.inference(module, 'inference failed', error: e, stackTrace: st);
       rethrow;
     }
   }
+}
+
+OrtValue? _singleOutput(Map<String, OrtValue> outputs, String requestedName) {
+  if (outputs.length != 1) return null;
+  final entry = outputs.entries.single;
+  AppLogger.inference(
+    'onnx',
+    'using output "${entry.key}" instead of requested "$requestedName"',
+  );
+  return entry.value;
+}
+
+const _emotionLabels = [
+  'neutral',
+  'happy',
+  'sad',
+  'surprised',
+  'fear',
+  'disgust',
+  'angry',
+  'contempt',
+];
+
+List<double> _softmax(List<double> logits) {
+  final maxLogit = logits.reduce((a, b) => a > b ? a : b);
+  final exp = logits.map((v) => math.exp(v - maxLogit)).toList(growable: false);
+  final sum = exp.reduce((a, b) => a + b);
+  return exp.map((v) => v / sum).toList(growable: false);
+}
+
+String _normalizeTokenizerJsonForLoader(String rawJson) {
+  final data = jsonDecode(rawJson) as Map<String, dynamic>;
+  final model = data['model'];
+  if (model is! Map<String, dynamic>) return rawJson;
+
+  final merges = model['merges'];
+  if (merges is! List || merges.isEmpty || merges.first is String) {
+    return rawJson;
+  }
+
+  model['merges'] = merges
+      .map((merge) {
+        if (merge is List && merge.length >= 2) {
+          return '${merge[0]} ${merge[1]}';
+        }
+        return merge.toString();
+      })
+      .toList(growable: false);
+
+  return jsonEncode(data);
 }

@@ -1,5 +1,5 @@
 import 'package:ai_gallery/core/db/schema.dart';
-import 'package:ai_gallery/rust/features/detection/detection_types.dart';
+import 'package:ai_gallery/core/inference/inference_types.dart';
 import 'package:sqlite3/sqlite3.dart';
 
 class DetectionsRepository {

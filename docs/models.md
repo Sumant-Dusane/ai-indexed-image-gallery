@@ -1,15 +1,14 @@
 # docs/models.md — ML models
 
 All models are bundled in `assets/models/`. All INT8 quantized. ONNX opset 17.
-Load lazily on first call. Cache as static `OnceLock<Session>` in Rust.
+Load lazily on first call. Cache one `OrtSession` per model in `InferenceRepository`.
 Never reload a session — one session per model for app lifetime.
 
-## Model extraction (first launch)
+## Model loading
 
-Flutter's asset bundle is not a real filesystem — Rust cannot load ONNX files directly from it.
-`inferenceRepositoryProvider` copies each model file from `assets/models/` to
-`getApplicationDocumentsDirectory()/models/` on first install using `rootBundle.load()`.
-Subsequent launches skip the copy (`existsSync()` guard). Rust receives the documents path.
+Use `flutter_onnxruntime` through `InferenceRepository`.
+Prefer `OnnxRuntime.createSessionFromAsset('assets/models/<file>.onnx')`.
+Only copy assets to `getApplicationDocumentsDirectory()/models/` if a plugin/platform limitation requires a real file path.
 
 ---
 
@@ -46,7 +45,7 @@ Total: ~18MB expected / ~90MB actual
 3. Input tensor: `[1, 77]` int32
 4. L2-normalize the 512-dim output vector
 
-**Note on BPE tokenizer:** Use the `tokenizers` Rust crate (HuggingFace) to load the vocab file and tokenize. This avoids implementing BPE from scratch. Add `tokenizers = ">=0.19"` to Cargo.toml.
+**Note on BPE tokenizer:** Tokenization is owned by Dart in the inference layer. Load `assets/models/bpe_vocab.json` once, produce the documented `[1, 77]` int32 token tensor, and validate token IDs against golden queries before enabling search.
 
 ### MobileFaceNet
 1. Crop face region from original image using bbox (expand bbox 20% on each side, clamp to image bounds)
@@ -78,21 +77,20 @@ Total: ~18MB expected / ~90MB actual
 
 ## Emotion class index mapping (fixed)
 
-```rust
-const EMOTION_LABELS: [&str; 8] = [
-    "neutral",    // 0
-    "happy",      // 1
-    "sad",        // 2
-    "surprised",  // 3
-    "fear",       // 4
-    "disgust",    // 5
-    "angry",      // 6
-    "contempt",   // 7 — map to "neutral" if argmax == 7
+```dart
+const emotionLabels = [
+  'neutral',   // 0
+  'happy',     // 1
+  'sad',       // 2
+  'surprised', // 3
+  'fear',      // 4
+  'disgust',   // 5
+  'angry',     // 6
+  'contempt',  // 7: map to "neutral"
 ];
 
-// In classify_emotion():
-let idx = argmax(&logits);
-let label = if idx == 7 { "neutral" } else { EMOTION_LABELS[idx] };
+final idx = argmax(logits);
+final label = idx == 7 ? 'neutral' : emotionLabels[idx];
 ```
 
 ---
@@ -116,7 +114,7 @@ Person boxes: do NOT insert into detections — feed to MobileFaceNet + emotion 
 
 ---
 
-## pHash algorithm (in Rust)
+## pHash algorithm (in Dart)
 
 1. Resize image to 32x32 grayscale
 2. Apply 2D DCT
@@ -128,46 +126,22 @@ Person boxes: do NOT insert into detections — feed to MobileFaceNet + emotion 
 
 ---
 
-## Reference: ort crate inference pattern
+## Reference: Flutter ONNX Runtime inference pattern
 
-Use this pattern for all model inference. Verify exact method names against `ort` v2 docs.
+Use this pattern for all model inference. Keep calls behind `InferenceRepository`.
 
-```rust
-use ort::{Session, GraphOptimizationLevel, inputs};
-use ndarray::Array4;
-use once_cell::sync::OnceLock;
+```dart
+import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 
-static CLIP_SESSION: OnceLock<Session> = OnceLock::new();
+final runtime = OnnxRuntime();
+final session = await runtime.createSessionFromAsset(
+  'assets/models/mobileclip_s1_image_int8.onnx',
+);
 
-/// Call once from init_models() to set the model directory path.
-/// Sessions are created lazily on first inference call.
-fn get_clip_session(model_dir: &str) -> &'static Session {
-    CLIP_SESSION.get_or_init(|| {
-        let model_path = format!("{}/mobileclip_s1_image_int8.onnx", model_dir);
-        Session::builder()
-            .expect("Failed to create session builder")
-            .with_optimization_level(GraphOptimizationLevel::Level3)
-            .expect("Failed to set optimization level")
-            .commit_from_file(&model_path)
-            .expect("Failed to load CLIP model")
-    })
-}
-
-/// Example inference call — adapt for each model
-fn run_clip_inference(session: &Session, preprocessed: Vec<f32>) -> Vec<f32> {
-    let input = Array4::<f32>::from_shape_vec([1, 3, 224, 224], preprocessed)
-        .expect("Invalid input shape");
-
-    let outputs = session
-        .run(inputs!["image" => input.view()].expect("Failed to create inputs"))
-        .expect("Inference failed");
-
-    let output_tensor = outputs["embedding"]
-        .try_extract_tensor::<f32>()
-        .expect("Failed to extract output tensor");
-
-    output_tensor.view().iter().copied().collect()
-}
+final input = await OrtValue.fromList(preprocessed, [1, 3, 224, 224]);
+final outputs = await session.run({'image': input});
+final raw = await outputs['embedding']!.asFlattenedList();
+final embedding = raw.cast<double>();
 ```
 
 **Tensor names per model (use these exactly in `inputs![]` and `outputs[]`):**
@@ -181,29 +155,14 @@ fn run_clip_inference(session: &Session, preprocessed: Vec<f32>) -> Vec<f32> {
 
 ---
 
-## Reference: flutter_rust_bridge v2 setup
+## Reference: InferenceRepository API
 
-Bridge functions go in `rust/src/api.rs`. The `flutter_rust_bridge` codegen automatically exports all `pub fn` in this file.
+All app code calls `InferenceRepository`; no service, provider, or feature screen should create ONNX sessions directly.
 
-```rust
-// rust/src/api.rs
-// All pub functions here are auto-exported to Dart.
-// Complex types (Detection, BBox, EmotionResult) are auto-bridged.
-// Vec<u8>, Vec<f32>, String are natively supported types.
-
-pub fn embed_image(pixels: Vec<u8>, width: u32, height: u32) -> Vec<f32> {
-    // ...
-}
-```
-
-Generate Dart bindings:
-```bash
-flutter_rust_bridge_codegen generate
-```
-
-From Dart, call via the generated API:
 ```dart
-import 'package:ai_gallery/rust/api.dart';
-
-final embedding = await embedImage(pixels: pixels, width: w, height: h);
+final embedding = await inference.embedImage(
+  pixels: pixels,
+  width: w,
+  height: h,
+);
 ```

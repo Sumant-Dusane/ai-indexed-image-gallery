@@ -8,7 +8,7 @@ enum LogCategory {
   database,
   search,
   faces,
-  rust,
+  inference,
 }
 
 /// Lightweight debug logger. Zero dependencies; always a no-op in release.
@@ -91,8 +91,17 @@ class AppLogger {
   static void faces(String msg, {Object? error, StackTrace? stackTrace}) =>
       log(LogCategory.faces, msg, error: error, stackTrace: stackTrace);
 
-  static void rust(String module, String msg, {Object? error, StackTrace? stackTrace}) =>
-      log(LogCategory.rust, '[$module] $msg', error: error, stackTrace: stackTrace);
+  static void inference(
+    String module,
+    String msg, {
+    Object? error,
+    StackTrace? stackTrace,
+  }) => log(
+    LogCategory.inference,
+    '[$module] $msg',
+    error: error,
+    stackTrace: stackTrace,
+  );
 
   // ---------------------------------------------------------------------------
   // Internal
@@ -112,8 +121,8 @@ class AppLogger {
         return 'SEARCH';
       case LogCategory.faces:
         return 'FACES';
-      case LogCategory.rust:
-        return 'RUST';
+      case LogCategory.inference:
+        return 'INFERENCE';
     }
   }
 }

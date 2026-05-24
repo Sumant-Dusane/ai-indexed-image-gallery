@@ -1,6 +1,4 @@
-import 'package:ai_gallery/rust/features/detection/detection_types.dart';
-import 'package:ai_gallery/rust/features/emotion/emotion_types.dart';
-import 'package:ai_gallery/rust/shared/types/bbox.dart';
+import 'package:ai_gallery/core/inference/inference_types.dart';
 
 class DebugProbeResult {
   final int width;

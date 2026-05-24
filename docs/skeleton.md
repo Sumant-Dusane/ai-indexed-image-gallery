@@ -28,7 +28,7 @@ lib/
       database_provider.dart           ← @riverpod Database provider
     repositories/
       photo_repository.dart            ← photo_manager wrapper: list assets, get bytes
-      inference_repository.dart        ← Rust bridge wrapper (stubs in Phase 1)
+      inference_repository.dart        ← inference seam (stubs in Phase 1)
   features/
     gallery/
       gallery_screen.dart              ← placeholder scaffold with bottom nav
@@ -39,11 +39,6 @@ lib/
     onboarding/
       onboarding_screen.dart           ← placeholder scaffold
 
-rust/
-  Cargo.toml                           ← all Rust dependencies from docs/stack.md
-  src/
-    lib.rs                             ← bridge setup, module declarations
-    api.rs                             ← flutter_rust_bridge annotated stubs for all 6 bridge functions
 ```
 
 ---
@@ -174,29 +169,10 @@ Check `SharedPreferences` key `onboarding_complete` to decide initial route:
 
 ---
 
-## Rust crate initialization
+## Inference repository initialization
 
-Create `rust/Cargo.toml` with all crates from `docs/stack.md` Rust section.
-
-`rust/src/lib.rs`:
-```rust
-mod api;
-```
-
-`rust/src/api.rs` — stub all 6 bridge functions with `todo!()`:
-```rust
-pub fn embed_image(pixels: Vec<u8>, width: u32, height: u32) -> Vec<f32> { todo!() }
-pub fn detect_objects(pixels: Vec<u8>, width: u32, height: u32) -> Vec<Detection> { todo!() }
-pub fn embed_face(pixels: Vec<u8>, width: u32, height: u32, bbox: BBox) -> Vec<f32> { todo!() }
-pub fn classify_emotion(pixels: Vec<u8>, width: u32, height: u32, bbox: BBox) -> EmotionResult { todo!() }
-pub fn compute_phash(pixels: Vec<u8>, width: u32, height: u32) -> String { todo!() }
-pub fn embed_text(query: String) -> Vec<f32> { todo!() }
-pub fn init_models(model_dir: String) { todo!() }
-```
-
-Also define the shared types (Detection, BBox, EmotionResult) — see `rust/CLAUDE.md`.
-
-Run `flutter_rust_bridge_codegen generate` after creating the Rust files.
+Create `lib/core/repositories/inference_repository.dart` with the public API documented in `docs/models.md`.
+In Phase 1, methods may return empty/dummy values. Phase 2 fills in Flutter ONNX Runtime-backed implementation details.
 
 ---
 
@@ -205,7 +181,7 @@ Run `flutter_rust_bridge_codegen generate` after creating the Rust files.
 Each feature screen in Phase 1 is a minimal `Scaffold` with:
 - `AppBar` with the screen name
 - `Center(child: Text('Coming in Phase N'))` as body
-- Correct widget class name matching the CLAUDE.md spec for that feature
+- Correct widget class name matching the AGENTS.md spec for that feature
 
 These placeholders let the router and bottom nav work. Real UI comes in later phases.
 
