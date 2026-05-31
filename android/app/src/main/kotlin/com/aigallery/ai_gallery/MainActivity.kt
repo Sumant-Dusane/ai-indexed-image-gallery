@@ -1,5 +1,7 @@
 package com.aigallery.ai_gallery
 
+import android.content.Context
+import android.os.BatteryManager
 import android.os.Environment
 import android.os.StatFs
 import io.flutter.embedding.android.FlutterActivity
@@ -14,6 +16,16 @@ class MainActivity : FlutterActivity() {
         if (call.method == "getFreeBytes") {
           val stat = StatFs(Environment.getDataDirectory().path)
           result.success(stat.availableBytes)
+        } else {
+          result.notImplemented()
+        }
+      }
+    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.aigallery/throttle")
+      .setMethodCallHandler { call, result ->
+        if (call.method == "getBatteryLevel") {
+          val battery = getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+          val percent = battery.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+          result.success(if (percent < 0) 1.0 else percent / 100.0)
         } else {
           result.notImplemented()
         }

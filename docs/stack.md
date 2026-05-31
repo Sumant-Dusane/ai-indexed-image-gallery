@@ -8,6 +8,9 @@ iOS and Android only. No web, macOS, Linux, or Windows support.
 
 ## Flutter / Dart
 
+The Flutter SDK is pinned by `.fvmrc`. Never run `flutter upgrade` or `fvm flutter upgrade`.
+Change the pinned SDK only through an explicit spec override.
+
 | Package | Version | Purpose |
 |---|---|---|
 | `flutter` | 3.x | UI framework |
@@ -21,7 +24,7 @@ iOS and Android only. No web, macOS, Linux, or Windows support.
 | `build_runner` | ^2.4.0 | Code generation runner (dev dependency) |
 | `go_router` | ^14.0.0 | Navigation |
 | `photo_manager` | ^3.0.0 | Photo library access (iOS + Android) |
-| `workmanager` | ^0.5.0 | Background tasks (Android WorkManager + iOS BGTask) |
+| `workmanager` | ^0.9.0+3 | Background tasks (Android WorkManager + iOS BGTask) |
 | `sqlite3` | ^3.2.0 | SQLite access (lower-level FFI binding required by sqlite_vector) |
 | `sqlite_vector` | ^0.9.93 | Vector similarity search extension (replaces sqlite_vec) |
 | `flutter_onnxruntime` | ^1.7.1 | ONNX Runtime session loading and inference from Flutter |

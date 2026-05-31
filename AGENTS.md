@@ -7,7 +7,7 @@ iOS 16+ and Android 10+.
 
 ## Current phase
 
-**Phase 3 — Indexing Service**
+**Phase 4 — QueryService + Search**
 _(Update this line when a phase is committed.)_
 
 ---

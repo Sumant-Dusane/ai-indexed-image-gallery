@@ -5,9 +5,9 @@ Exact prompts to paste into coding agents for building the AI Gallery app across
 
 ## Current Project State
 
-- Current product phase: **Phase 3 — Indexing Service**.
+- Current product phase: **Phase 4 — QueryService + Search**.
 - Inference is implemented through `lib/core/repositories/inference_repository.dart`.
-- Future sessions should continue from the current Phase 3 state unless `AGENTS.md` says a phase was completed.
+- Future sessions should continue from the current Phase 4 state unless `AGENTS.md` says a phase was completed.
 
 ---
 
@@ -421,9 +421,9 @@ I want to change [specific thing] from [old] to [new]. This contradicts docs/[fi
 - [x] Update AGENTS.md phase line
 
 ## Phase 3 — IndexingService
-- [ ] 3A: Core pipeline → commit: ___
-- [ ] 3B: Background tasks + gallery wiring → commit: ___
-- [ ] Update AGENTS.md phase line
+- [x] 3A: Core pipeline → commit: `9931d7e`
+- [x] 3B: Background tasks + gallery wiring → commit: this checkpoint
+- [x] Update AGENTS.md phase line
 
 ## Phase 4 — QueryService + Search
 - [ ] 4A: QueryService → commit: ___

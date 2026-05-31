@@ -1,17 +1,59 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:ai_gallery/core/debug/app_logger.dart';
 import 'package:ai_gallery/core/errors/storage_full_exception.dart';
 import 'package:ai_gallery/core/models/indexing_state.dart';
 import 'package:ai_gallery/core/platform/native_channel_client.dart';
+import 'package:ai_gallery/core/providers/indexing_service_provider.dart';
 import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
 import 'package:ai_gallery/services/image_pipeline.dart';
-import 'package:flutter/services.dart' show MethodCall;
+import 'package:flutter/services.dart' show MethodCall, MethodChannel;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:workmanager/workmanager.dart';
+
+const _backgroundChannel = 'com.aigallery/background';
+const _backgroundPauseMethod = 'pauseIndexing';
+const _backgroundStartMethod = 'startIndexing';
+const _backgroundCompleteMethod = 'completeIndexingTask';
+const _androidBackgroundRunLimit = Duration(minutes: 9);
+
+@pragma('vm:entry-point')
+void indexingTaskDispatcher() {
+  DartPluginRegistrant.ensureInitialized();
+  Workmanager().executeTask((task, inputData) async {
+    AppLogger.indexing('background indexing task triggered: $task');
+    final container = ProviderContainer();
+    try {
+      final service = await container.read(indexingServiceProvider.future);
+      await service.syncPhotoLibrary();
+      final indexing = service._startIndexing(scheduleBackgroundTask: false);
+      final timeout = Completer<void>();
+      final timer = Timer(_androidBackgroundRunLimit, () {
+        AppLogger.indexing('background indexing time limit reached');
+        service.pause();
+        timeout.complete();
+      });
+      await Future.any([indexing, timeout.future]);
+      timer.cancel();
+      await indexing;
+      return true;
+    } catch (e, st) {
+      AppLogger.indexing(
+        'background indexing task failed',
+        error: e,
+        stackTrace: st,
+      );
+      return false;
+    } finally {
+      container.dispose();
+    }
+  });
+}
 
 class IndexingService {
   final PhotosDbRepository _photosDb;
@@ -19,14 +61,19 @@ class IndexingService {
   final PhotoRepository _photos;
   final NativeChannelClient _native;
   final void Function(IndexingState) _onStateUpdate;
+  final MethodChannel _bgChannel = const MethodChannel(_backgroundChannel);
 
   bool _isRunning = false;
   bool _paused = false;
+  bool _observerRegistered = false;
+  bool _workmanagerInitialized = false;
   final ListQueue<String> _queue = ListQueue();
   IndexingState _state = const IndexingState();
   Timer? _throttlePoller;
+  Set<String> _knownAssetIds = <String>{};
 
   static const _bgTaskId = 'com.aigallery.indexing';
+  static const _androidTaskName = 'IndexingWorker';
 
   IndexingService({
     required PhotosDbRepository photosDb,
@@ -47,8 +94,11 @@ class IndexingService {
   /// callers are responsible for catching and surfacing this.
   Future<void> syncPhotoLibrary() async {
     AppLogger.indexing('syncPhotoLibrary started');
+    _registerBackgroundPauseHandler();
+    await _registerChangeObserver();
     final assets = await _photos.listAllAssets();
     AppLogger.indexing('fetched ${assets.length} assets from library');
+    _knownAssetIds = assets.map((asset) => asset.id).toSet();
     for (final asset in assets) {
       // localPath is left null here — no entity.file call, no iOS temp write.
       // The path is populated during _indexAsset when we already need the bytes.
@@ -62,7 +112,9 @@ class IndexingService {
   ///
   /// Throws [StorageFullException] if the device runs out of space during
   /// inference; callers are responsible for catching and surfacing this.
-  Future<void> startIndexing() async {
+  Future<void> startIndexing() => _startIndexing(scheduleBackgroundTask: true);
+
+  Future<void> _startIndexing({required bool scheduleBackgroundTask}) async {
     if (_isRunning) return;
     _isRunning = true;
     _paused = false;
@@ -78,7 +130,9 @@ class IndexingService {
     );
     _refreshCounts();
     _updateState(_state.copyWith(isRunning: true));
-    await _registerBackgroundTask();
+    if (scheduleBackgroundTask) {
+      await _registerBackgroundTask();
+    }
     await _drainQueue();
   }
 
@@ -94,29 +148,99 @@ class IndexingService {
       if (asset == null) continue;
       // localPath populated during indexing — no temp write here.
       _photosDb.upsertAsset(asset, null);
-      _queue.addFirst(id);
+      _knownAssetIds.add(id);
+      if (!_queue.contains(id)) {
+        _queue.addFirst(id);
+      }
     }
     _refreshCounts();
+    if (!_isRunning && !_paused && _queue.isNotEmpty) {
+      unawaited(startIndexing());
+    }
   }
 
   Future<void> onAssetsDeleted(List<String> assetIds) async {
     _photosDb.deleteAssets(assetIds);
     _queue.removeWhere(assetIds.contains);
+    _knownAssetIds.removeAll(assetIds);
     _refreshCounts();
   }
 
-  /// Register the photo library change observer.
-  /// Call after [syncPhotoLibrary] completes and permission is granted.
-  void registerChangeObserver() {
+  Future<void> registerChangeObserver() => _registerChangeObserver();
+
+  Future<void> _registerChangeObserver() async {
+    if (_observerRegistered) return;
     PhotoManager.addChangeCallback(_onPhotoLibraryChange);
-    PhotoManager.startChangeNotify();
+    await PhotoManager.startChangeNotify();
+    _observerRegistered = true;
   }
 
-  // photo_manager 3.x fires a bare MethodCall('change') with no added/removed
-  // IDs in the payload. Re-sync the full library so new assets are inserted
-  // (INSERT OR IGNORE) and can be queued for indexing on the next startIndexing.
+  void _registerBackgroundPauseHandler() {
+    _bgChannel.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case _backgroundPauseMethod:
+          AppLogger.indexing('received background pause request');
+          pause();
+          return null;
+        case _backgroundStartMethod:
+          await _runIosBackgroundIndexing();
+          return null;
+      }
+      return null;
+    });
+  }
+
+  Future<void> _runIosBackgroundIndexing() async {
+    AppLogger.indexing('iOS background indexing task triggered');
+    var success = false;
+    try {
+      await syncPhotoLibrary();
+      await _startIndexing(scheduleBackgroundTask: false);
+      success = true;
+    } catch (e, st) {
+      AppLogger.indexing(
+        'iOS background indexing task failed',
+        error: e,
+        stackTrace: st,
+      );
+    } finally {
+      await _bgChannel.invokeMethod<void>(_backgroundCompleteMethod, success);
+    }
+  }
+
   void _onPhotoLibraryChange(MethodCall call) {
-    syncPhotoLibrary();
+    if (call.method != 'change') return;
+    unawaited(_reconcilePhotoLibraryDelta());
+  }
+
+  Future<void> _reconcilePhotoLibraryDelta() async {
+    try {
+      final assets = await _photos.listAllAssets();
+      final latestIds = assets.map((asset) => asset.id).toSet();
+      final addedIds = latestIds
+          .difference(_knownAssetIds)
+          .toList(growable: false);
+      final deletedIds = _knownAssetIds
+          .difference(latestIds)
+          .toList(growable: false);
+
+      if (addedIds.isNotEmpty) {
+        AppLogger.indexing('photo library delta: ${addedIds.length} added');
+        await onAssetsAdded(addedIds);
+      }
+      if (deletedIds.isNotEmpty) {
+        AppLogger.indexing('photo library delta: ${deletedIds.length} deleted');
+        await onAssetsDeleted(deletedIds);
+      }
+
+      _knownAssetIds = latestIds;
+    } catch (e, st) {
+      AppLogger.indexing(
+        'failed to reconcile photo library delta',
+        error: e,
+        stackTrace: st,
+      );
+    }
   }
 
   Future<void> _drainQueue() async {
@@ -158,7 +282,7 @@ class IndexingService {
       final batteryLevel = await _native.getBatteryLevel();
       if (batteryLevel < 0.20) return true;
       final thermal = await _native.getThermalState();
-      if (thermal == 'serious' || thermal == 'critical') return true;
+      if (thermal == 'serious') return true;
     } catch (e) {
       AppLogger.indexing('throttle check failed: $e');
     }
@@ -166,14 +290,23 @@ class IndexingService {
   }
 
   Future<void> _registerBackgroundTask() async {
-    await _native.scheduleIndexingTask(); // no-op on Android
+    if (Platform.isIOS) {
+      await _native.scheduleIndexingTask();
+      return;
+    }
+
+    if (!_workmanagerInitialized) {
+      await Workmanager().initialize(indexingTaskDispatcher);
+      _workmanagerInitialized = true;
+    }
+
     if (Platform.isAndroid) {
       await Workmanager().registerPeriodicTask(
         _bgTaskId,
-        'IndexingWorker',
+        _androidTaskName,
         frequency: const Duration(hours: 1),
         constraints: Constraints(
-          networkType: NetworkType.not_required,
+          networkType: NetworkType.notRequired,
           requiresCharging: true,
           requiresDeviceIdle: true,
         ),

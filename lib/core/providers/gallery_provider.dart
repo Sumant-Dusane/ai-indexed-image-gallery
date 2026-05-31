@@ -1,6 +1,7 @@
 import 'package:ai_gallery/core/debug/app_logger.dart';
 import 'package:ai_gallery/core/providers/photo_permission_provider.dart';
 import 'package:ai_gallery/core/repositories/photo_repository.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -21,6 +22,21 @@ part 'gallery_provider.g.dart';
 Future<Map<String, List<AssetEntity>>> gallery(Ref ref) async {
   final permission = await ref.watch(photoPermissionProvider.future);
   if (!permission.isGranted) return {};
+
+  void onLibraryChange(MethodCall call) {
+    if (call.method == 'change') {
+      AppLogger.gallery('photo library changed — invalidating galleryProvider');
+      ref.invalidateSelf();
+    }
+  }
+
+  PhotoManager.addChangeCallback(onLibraryChange);
+  if (!PhotoManager.notifyingOfChange) {
+    await PhotoManager.startChangeNotify();
+  }
+  ref.onDispose(() {
+    PhotoManager.removeChangeCallback(onLibraryChange);
+  });
 
   AppLogger.gallery('loading assets from photo library');
   final assets = await PhotoRepository().listAllAssets();
