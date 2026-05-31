@@ -165,7 +165,9 @@ class SearchResult with _$SearchResult {
 
 ## DB Repositories
 
-All SQL lives in `lib/core/repositories/`. Handlers and services never write raw SQL directly.
+Indexing and clustering SQL lives in `lib/core/repositories/`. Handlers never write raw SQL
+directly. `QueryService` owns its read-only search SQL because its metadata `WHERE` clauses
+are composed dynamically from parsed query intent.
 
 | File | Tables owned | Callers |
 |---|---|---|

@@ -7,7 +7,7 @@ iOS 16+ and Android 10+.
 
 ## Current phase
 
-**Phase 4 — QueryService + Search**
+**Phase 5 — FaceClusterService**
 _(Update this line when a phase is committed.)_
 
 ---

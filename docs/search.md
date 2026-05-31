@@ -2,6 +2,8 @@
 
 Owned by: `lib/services/query_service.dart`
 State exposed via: `lib/core/providers/search_provider.dart`
+Vocabulary owned by: `lib/core/constants/search_vocabulary.dart`
+Canonical retained YOLO labels owned by: `lib/core/constants/yolo_detection_labels.dart`
 
 ---
 
@@ -9,11 +11,13 @@ State exposed via: `lib/core/providers/search_provider.dart`
 
 ```dart
 class QueryService {
-  // Main entry point. Returns ranked results.
-  Future<List<SearchResult>> search(String query);
-
-  // Called by provider with debounce — same as search().
-  Stream<List<SearchResult>> searchStream(String query);
+  // Main entry point. Returns one ranked page. Pass offset + limit to continue
+  // the same query for a future "Load more" action.
+  Future<List<SearchResult>> search(
+    String query, {
+    int offset = 0,
+    int limit = 50,
+  });
 }
 ```
 
@@ -50,7 +54,8 @@ class QueryIntent with _$QueryIntent {
 "recent" / "lately"→ last 30 days
 ```
 
-**Emotion mapping — check query for these words, map to DB emotion:**
+**Emotion mapping — check query for these words, map to DB emotion. Keep the
+expandable map in `SearchVocabulary.emotionAliases`:**
 ```dart
 const Map<String, String> emotionAliases = {
   'laughing':  'happy',
@@ -84,7 +89,8 @@ const Map<String, String> emotionAliases = {
 ```dart
 final embedding = await inferenceRepository.embedText(intent.cleanQuery);
 // Returns List<double> length 512, L2-normalised
-// Skip this step if cleanQuery is empty after Step 1 stripping
+// If cleanQuery is empty after Step 1 stripping, embed the normalized original
+// query so vector search still runs for metadata-only text such as "last month".
 ```
 
 ---
@@ -92,15 +98,17 @@ final embedding = await inferenceRepository.embedText(intent.cleanQuery);
 ### Step 3 — Vector search
 
 ```sql
-SELECT p.id, p.local_path, p.taken_at,
-       vec_distance_cosine(pv.embedding, ?) AS score
-FROM photo_clip_vss pv
-JOIN photos p ON pv.photo_id = p.id
-ORDER BY score ASC
-LIMIT 200
+SELECT p.id, p.local_path, p.taken_at, v.distance AS score
+FROM vector_full_scan('photo_embeddings', 'embedding', ?, :candidateLimit) AS v
+JOIN photo_embeddings pe ON v.rowid = pe.rowid
+JOIN photos p ON pe.photo_id = p.id
+ORDER BY v.distance ASC
+LIMIT :candidateLimit
 ```
 
-Bind: embedding vector as blob.
+Bind: embedding vector as raw little-endian float32 blob. Set
+`:candidateLimit = offset + limit` so later pages expand the ranked candidate
+window.
 
 ---
 
@@ -129,9 +137,21 @@ AND EXISTS (
   SELECT 1 FROM detections d
   WHERE d.photo_id = p.id AND d.label LIKE :label
 )
+
+-- Person object filter (if cleanQuery contains "person"):
+-- YOLO person detections are represented by faces, not stored in detections.
+AND EXISTS (
+  SELECT 1 FROM faces f
+  WHERE f.photo_id = p.id
+)
 ```
 
-Build the WHERE clause dynamically in Dart. Combine Steps 3+4 into one query.
+Build the WHERE clause dynamically in Dart. Combine Steps 3+4 into one vector
+query. Also run a metadata-only query on every search. When no structured
+metadata hint was parsed, the metadata-only query returns no candidates.
+
+Merge vector and metadata-only candidates by photo ID before re-ranking. If a
+photo appears in both sets, retain its vector distance.
 
 ---
 
@@ -147,14 +167,24 @@ double finalScore(double vectorScore, DateTime? takenAt) {
   return 0.7 * semanticScore + 0.3 * recencyScore;
   // Higher final score = better result
 }
-// Sort descending by finalScore, take top 50
+// Sort descending by finalScore, then photoId ascending as a stable tie-breaker.
 ```
 
 ---
 
 ### Step 6 — Return
 
-Return `List<SearchResult>` capped at 50 items, sorted by finalScore descending.
+Return one sorted page of `List<SearchResult>`. Default page size: 50 items.
+Support continuation with `offset` and `limit` so a future "Load more" button
+can request the next page without changing the initial result cap.
+
+## Future ranking stability
+
+The same query should return a stable result order across repeated searches and
+pagination. The current implementation uses `photoId` as a deterministic
+tie-breaker. A future iteration should add a query-session snapshot or cached
+ranked candidate list so newly indexed photos and time-based recency changes do
+not drastically reorder an active search session.
 
 ---
 
@@ -168,11 +198,13 @@ class SearchState with _$SearchState {
     @Default([]) List<SearchResult> results,
     @Default(false) bool isSearching,
     @Default(false) bool indexingPartial,
+    @Default(false) bool hasMore,
   }) = _SearchState;
 }
 
-// Debounce: 400ms
-// Minimum query length: 2 characters
+// Search runs only after explicit submission from the search button or keyboard
+// search action. Typing updates state.query but never starts inference or SQL.
+// Minimum submitted query length: 2 characters
 // While indexing is still running: set indexingPartial = true
 //   (don't block search — return partial results from what's indexed so far)
 
@@ -181,10 +213,33 @@ class SearchNotifier extends _$SearchNotifier {
   @override
   SearchState build() => const SearchState();
 
-  Future<void> search(String query) async {
-    state = state.copyWith(query: query, isSearching: true);
-    final results = await ref.read(queryServiceProvider).search(query);
-    state = state.copyWith(results: results, isSearching: false);
+  void updateQuery(String query) {
+    state = state.copyWith(query: query);
+  }
+
+  Future<void> search() async {
+    state = state.copyWith(isSearching: true);
+    final page = await ref.read(queryServiceProvider.future).search(
+      state.query,
+      limit: 51, // One extra row determines whether continuation is available.
+    );
+    state = state.copyWith(
+      results: page.take(50).toList(),
+      isSearching: false,
+      hasMore: page.length > 50,
+    );
+  }
+
+  Future<void> loadMore() async {
+    final page = await ref.read(queryServiceProvider.future).search(
+      state.query,
+      offset: state.results.length,
+      limit: 51,
+    );
+    state = state.copyWith(
+      results: [...state.results, ...page.take(50)],
+      hasMore: page.length > 50,
+    );
   }
 }
 ```
@@ -193,16 +248,22 @@ class SearchNotifier extends _$SearchNotifier {
 
 ## Known YOLO labels for object query matching
 
-Check `cleanQuery` against this list. If any word matches, add the object filter:
+Use the derived indexed-label set in `YoloDetectionLabels.indexedLabels`.
+Search must not duplicate this list. If any word matches, add the object filter.
+
+Keep user-facing synonyms in `SearchVocabulary.objectAliases`. Map aliases to
+their stored YOLO labels before applying the object filter:
 ```dart
-const yoloLabels = [
-  'person','car','motorcycle','bicycle','bus','truck',
-  'dog','cat','bird','horse',
-  'bottle','cup','glass','bowl',
-  'pizza','cake','sandwich','food',
-  'laptop','phone','tv','computer',
-  'chair','couch','sofa','bed','table',
-  'book','clock','umbrella','backpack','bag',
-  'snowboard','ski','surfboard','skateboard','ball',
-];
+const objectAliases = {
+  'automobile': 'car',
+  'mobile':     'phone',
+  'puppy':      'dog',
+  'kitten':     'cat',
+  'sofa':       'couch',
+  'glass':      'wine glass',
+  'table':      'dining table',
+  'bag':        'handbag',
+  'ski':        'skis',
+  'ball':       'sports ball',
+};
 ```

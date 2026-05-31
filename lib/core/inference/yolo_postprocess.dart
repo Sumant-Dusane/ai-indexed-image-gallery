@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:ai_gallery/core/constants/yolo_detection_labels.dart';
 import 'package:ai_gallery/core/inference/image_tensor_utils.dart';
 import 'package:ai_gallery/core/inference/inference_types.dart';
 
@@ -39,7 +40,7 @@ List<Detection> parseYoloOutput(
     }
 
     if (confidence < _confidenceThreshold) continue;
-    final label = _allowedLabel(classIdx);
+    final label = YoloDetectionLabels.retainedByClassIndex[classIdx];
     if (label == null) continue;
 
     rawDetections.add(
@@ -122,46 +123,6 @@ double _iou(_RawDetection a, _RawDetection b) {
   final areaA = (a.x2 - a.x1) * (a.y2 - a.y1);
   final areaB = (b.x2 - b.x1) * (b.y2 - b.y1);
   return inter / (areaA + areaB - inter);
-}
-
-String? _allowedLabel(int classIdx) {
-  return switch (classIdx) {
-    0 => 'person',
-    1 => 'bicycle',
-    2 => 'car',
-    3 => 'motorcycle',
-    5 => 'bus',
-    7 => 'truck',
-    14 => 'bird',
-    15 => 'cat',
-    16 => 'dog',
-    17 => 'horse',
-    24 => 'backpack',
-    25 => 'umbrella',
-    26 => 'handbag',
-    30 => 'skis',
-    31 => 'snowboard',
-    32 => 'sports ball',
-    36 => 'skateboard',
-    37 => 'surfboard',
-    39 => 'bottle',
-    40 => 'wine glass',
-    41 => 'cup',
-    45 => 'bowl',
-    48 => 'sandwich',
-    53 => 'pizza',
-    55 => 'cake',
-    56 => 'chair',
-    57 => 'couch',
-    59 => 'bed',
-    60 => 'dining table',
-    62 => 'tv',
-    63 => 'laptop',
-    67 => 'phone',
-    73 => 'book',
-    74 => 'clock',
-    _ => null,
-  };
 }
 
 class _RawDetection {

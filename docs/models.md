@@ -112,6 +112,11 @@ snowboard, skis, surfboard, skateboard, sports ball
 Non-person objects: insert into `detections` table.
 Person boxes: do NOT insert into detections — feed to MobileFaceNet + emotion pipeline instead.
 
+Canonical retained-label mapping:
+`lib/core/constants/yolo_detection_labels.dart`. It declares the app's subset
+of YOLO classes once. Indexing and search must use that shared source so
+metadata filters match stored labels exactly.
+
 ---
 
 ## pHash algorithm (in Dart)

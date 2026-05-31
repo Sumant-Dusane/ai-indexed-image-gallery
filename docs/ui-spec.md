@@ -92,7 +92,10 @@ Layout:
 - Full screen, white/system background
 - Search bar at top, auto-focused, keyboard opens immediately
 - Below search bar: results grid (3-col, same as gallery) or empty state
-- Results stream as user types (debounce 400ms, min 2 chars)
+- Search bar has a visible search button
+- Typing only edits the query; it never starts inference or SQL
+- Search runs after tapping the search button or using the keyboard search action
+- Minimum submitted query length: 2 characters
 
 States:
 - **Empty / initial**: show suggestion chips

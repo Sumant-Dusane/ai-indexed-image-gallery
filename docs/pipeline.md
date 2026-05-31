@@ -201,7 +201,7 @@ STEP 2 — PARALLEL INFERENCE
 
   Task A — CLIP embedding:
     call InferenceRepository: embedImage(pixels, w, h) → List<double> length 512
-    upsert into photo_clip_vss (photo_id, embedding)
+    upsert into photo_embeddings (photo_id, embedding)
 
   Task B — YOLO detection:
     call InferenceRepository: detectObjects(pixels, w, h) → List<Detection>
@@ -215,7 +215,7 @@ STEP 3 — FACE PIPELINE
   Task C — face embed:
     call InferenceRepository: embedFace(pixels, w, h, bbox) → List<double> length 128
     insert into faces table (photo_id, bbox fields, cluster_id=NULL)
-    insert into face_vss (face_id, embedding)
+    insert into face_embeddings (face_id, embedding)
 
   Task D — emotion:
     call InferenceRepository: classifyEmotion(pixels, w, h, bbox) → EmotionResult

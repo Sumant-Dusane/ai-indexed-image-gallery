@@ -33,7 +33,7 @@ Parameters (fixed):
   minPts   = 3     (minimum faces to form a cluster)
 
 Algorithm:
-  1. Load all face embeddings from face_vss table
+  1. Load all face embeddings from face_embeddings table
      → List<(faceId: int, embedding: List<double>)>
 
   2. Build distance function:
