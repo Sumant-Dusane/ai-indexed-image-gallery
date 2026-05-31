@@ -1,7 +1,8 @@
-import 'dart:io';
-
 import 'package:ai_gallery/core/providers/indexing_notifier_provider.dart';
 import 'package:ai_gallery/core/providers/search_provider.dart';
+import 'package:ai_gallery/features/search/search_bar.dart';
+import 'package:ai_gallery/features/search/search_empty_state.dart';
+import 'package:ai_gallery/features/search/search_results_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,18 +15,15 @@ class SearchScreen extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
   bool _hasSubmitted = false;
 
-  void _setQuery(String query) {
-    _controller.text = query;
-    _controller.selection = TextSelection.collapsed(offset: query.length);
-    ref.read(searchNotifierProvider.notifier).updateQuery(query);
-  }
-
-  Future<void> _submit() async {
-    setState(() => _hasSubmitted = true);
-    await ref.read(searchNotifierProvider.notifier).search();
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(
+      text: ref.read(searchNotifierProvider).query,
+    );
   }
 
   @override
@@ -34,82 +32,70 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     super.dispose();
   }
 
+  void _clear() {
+    _controller.clear();
+    ref.read(searchNotifierProvider.notifier).clear();
+    setState(() => _hasSubmitted = false);
+  }
+
+  void _setQuery(String query) {
+    _controller.value = TextEditingValue(
+      text: query,
+      selection: TextSelection.collapsed(offset: query.length),
+    );
+    ref.read(searchNotifierProvider.notifier).updateQuery(query);
+  }
+
+  Future<void> _submit() async {
+    if (_controller.text.trim().length < 2) {
+      setState(() => _hasSubmitted = false);
+      return;
+    }
+    setState(() => _hasSubmitted = true);
+    await ref.read(searchNotifierProvider.notifier).search();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(searchNotifierProvider);
-    final indexing = ref.watch(indexingNotifierProvider);
-    final notifier = ref.read(searchNotifierProvider.notifier);
+    final searchState = ref.watch(searchNotifierProvider);
+    final indexingState = ref.watch(indexingNotifierProvider);
+    final isPartial = indexingState.indexed < indexingState.total;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Search'),
         leading: IconButton(
           tooltip: 'Back to gallery',
           onPressed: () {
-            _controller.clear();
-            notifier.clear();
+            _clear();
             context.go('/');
           },
           icon: const Icon(Icons.arrow_back),
         ),
+        title: const Text('Search'),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
-            child: TextField(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+            child: SearchInputBar(
               controller: _controller,
               autofocus: true,
-              textInputAction: TextInputAction.search,
+              isSearching: searchState.isSearching,
               onChanged: (query) {
                 setState(() => _hasSubmitted = false);
-                notifier.updateQuery(query);
+                ref.read(searchNotifierProvider.notifier).updateQuery(query);
               },
-              onSubmitted: (_) => _submit(),
-              decoration: InputDecoration(
-                hintText: 'Search your photos',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (state.isSearching)
-                      const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      ),
-                    if (_controller.text.isNotEmpty)
-                      IconButton(
-                        tooltip: 'Clear',
-                        onPressed: () {
-                          _controller.clear();
-                          setState(() => _hasSubmitted = false);
-                          notifier.clear();
-                        },
-                        icon: const Icon(Icons.clear),
-                      ),
-                    IconButton(
-                      tooltip: 'Search',
-                      onPressed: state.isSearching ? null : _submit,
-                      icon: const Icon(Icons.search),
-                    ),
-                  ],
-                ),
-              ),
+              onClear: _clear,
+              onSubmitted: _submit,
             ),
           ),
-          if (state.indexingPartial)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Still analysing - showing results from '
-                '${indexing.indexed} of ${indexing.total} photos',
-              ),
+          if (isPartial)
+            _PartialIndexBanner(
+              indexed: indexingState.indexed,
+              total: indexingState.total,
             ),
           Expanded(
-            child: _SearchResults(
-              state: state,
+            child: _SearchBody(
               hasSubmitted: _hasSubmitted,
               onSuggestionSelected: (query) {
                 _setQuery(query);
@@ -123,89 +109,52 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 }
 
-class _SearchResults extends StatelessWidget {
-  final SearchState state;
-  final bool hasSubmitted;
-  final void Function(String query) onSuggestionSelected;
-
-  const _SearchResults({
-    required this.state,
+class _SearchBody extends ConsumerWidget {
+  const _SearchBody({
     required this.hasSubmitted,
     required this.onSuggestionSelected,
   });
 
+  final bool hasSubmitted;
+  final ValueChanged<String> onSuggestionSelected;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(searchNotifierProvider);
+
     if (!hasSubmitted) {
-      return _SearchSuggestions(onSelected: onSuggestionSelected);
+      return SearchEmptyState.suggestions(onSelected: onSuggestionSelected);
+    }
+    if (state.isSearching && state.results.isEmpty) {
+      return const SizedBox.shrink();
     }
     if (state.results.isEmpty) {
-      if (state.query.trim().isEmpty) {
-        return const Center(child: Text('Search your photo library'));
-      }
-      if (state.isSearching) return const SizedBox.shrink();
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("No photos found for '${state.query}'"),
-            const SizedBox(height: 8),
-            const Text('Try different words, or wait for indexing to finish'),
-          ],
-        ),
-      );
+      return SearchEmptyState.noResults(query: state.query);
     }
-
-    return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        mainAxisSpacing: 2,
-        crossAxisSpacing: 2,
-      ),
-      itemCount: state.results.length,
-      itemBuilder: (context, index) {
-        final result = state.results[index];
-        return GestureDetector(
-          onTap: () => context.go('/photo/${result.photoId}'),
-          child: Hero(
-            tag: 'photo_${result.photoId}',
-            child: Image.file(File(result.localPath), fit: BoxFit.cover),
-          ),
-        );
-      },
-    );
+    return SearchResultsGrid(results: state.results);
   }
 }
 
-class _SearchSuggestions extends StatelessWidget {
-  final void Function(String query) onSelected;
+class _PartialIndexBanner extends StatelessWidget {
+  const _PartialIndexBanner({required this.indexed, required this.total});
 
-  const _SearchSuggestions({required this.onSelected});
+  final int indexed;
+  final int total;
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        alignment: WrapAlignment.center,
-        children: [
-          for (final suggestion in _searchSuggestions)
-            ActionChip(
-              label: Text(suggestion),
-              onPressed: () => onSelected(suggestion),
-            ),
-        ],
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Still analysing — showing results from $indexed of $total photos',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
 }
-
-const _searchSuggestions = <String>[
-  'beach sunset',
-  'birthday',
-  'red shirt',
-  'dog',
-  'snow',
-  'laughing',
-];

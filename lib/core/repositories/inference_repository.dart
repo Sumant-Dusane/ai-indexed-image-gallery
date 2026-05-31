@@ -181,7 +181,7 @@ class InferenceRepository {
       final raw = await _runVector(
         session: _clipTextSession!,
         inputName: 'tokens',
-        input: Int32List.fromList(ids),
+        input: Int64List.fromList(ids),
         shape: const [1, 77],
         outputName: 'embedding',
       );

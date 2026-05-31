@@ -17,7 +17,7 @@ Only copy assets to `getApplicationDocumentsDirectory()/models/` if a plugin/pla
 | File | Task | Input name | Input tensor | Output name | Output tensor | Expected size | Actual size |
 |---|---|---|---|---|---|---|---|
 | `mobileclip_s1_image_int8.onnx` | Image semantic embedding | `"image"` | `[1, 3, 224, 224]` float32 | `"embedding"` | `[1, 512]` float32 | ~6MB | 21MB |
-| `mobileclip_s1_text_int8.onnx` | Text query embedding | `"tokens"` | `[1, 77]` int32 | `"embedding"` | `[1, 512]` float32 | ~3MB | 60.9MB¹ |
+| `mobileclip_s1_text_int8.onnx` | Text query embedding | `"tokens"` | `[1, 77]` int64 | `"embedding"` | `[1, 512]` float32 | ~3MB | 60.9MB¹ |
 | `mobilefacenet_int8.onnx` | Face embedding | `"face"` | `[1, 3, 112, 112]` float32 | `"embedding"` | `[1, 128]` float32 | ~4MB | 1.1MB |
 | `yolov8n_int8.onnx` | Object detection | `"images"` | `[1, 3, 640, 640]` float32 | `"output0"` | `[1, 84, 8400]` float32 | ~3MB | 3.3MB |
 | `emotion_enet_b0_int8.onnx` | Emotion classification | `"face"` | `[1, 3, 224, 224]` float32 | `"logits"` | `[1, 8]` float32 | ~5MB | 4.0MB |
@@ -42,10 +42,10 @@ Total: ~18MB expected / ~90MB actual
 ### MobileCLIP-S1 (text)
 1. BPE tokenize query string (vocab file: `assets/models/bpe_vocab.json`)
 2. Pad or truncate to 77 tokens
-3. Input tensor: `[1, 77]` int32
+3. Input tensor: `[1, 77]` int64
 4. L2-normalize the 512-dim output vector
 
-**Note on BPE tokenizer:** Tokenization is owned by Dart in the inference layer. Load `assets/models/bpe_vocab.json` once, produce the documented `[1, 77]` int32 token tensor, and validate token IDs against golden queries before enabling search.
+**Note on BPE tokenizer:** Tokenization is owned by Dart in the inference layer. Load `assets/models/bpe_vocab.json` once, produce the documented `[1, 77]` int64 token tensor, and validate token IDs against golden queries before enabling search.
 
 ### MobileFaceNet
 1. Crop face region from original image using bbox (expand bbox 20% on each side, clamp to image bounds)
