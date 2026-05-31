@@ -17,6 +17,55 @@ Future<FaceClusterService> faceClusterService(Ref ref) async {
 }
 
 @riverpod
+Future<String?> faceClusterCoverPhotoId(Ref ref, int clusterId) async {
+  try {
+    final db = await ref.read(databaseProvider.future);
+    final rows = db.select(
+      '''
+      SELECT f.photo_id
+      FROM clusters c
+      JOIN faces f ON c.cover_face_id = f.id
+      WHERE c.id = ?
+    ''',
+      [clusterId],
+    );
+    return rows.isEmpty ? null : rows.first['photo_id'] as String;
+  } catch (error, stackTrace) {
+    AppLogger.faces(
+      'failed to load cover photo for cluster $clusterId',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    rethrow;
+  }
+}
+
+@riverpod
+Future<List<String>> faceClusterPhotoIds(Ref ref, int clusterId) async {
+  try {
+    final db = await ref.read(databaseProvider.future);
+    final rows = db.select(
+      '''
+      SELECT DISTINCT p.id, p.taken_at
+      FROM faces f
+      JOIN photos p ON f.photo_id = p.id
+      WHERE f.cluster_id = ?
+      ORDER BY p.taken_at DESC
+    ''',
+      [clusterId],
+    );
+    return [for (final row in rows) row['id'] as String];
+  } catch (error, stackTrace) {
+    AppLogger.faces(
+      'failed to load photos for cluster $clusterId',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    rethrow;
+  }
+}
+
+@riverpod
 class FaceClusterNotifier extends _$FaceClusterNotifier {
   @override
   FaceClusterState build() => const FaceClusterState();
@@ -68,6 +117,38 @@ class FaceClusterNotifier extends _$FaceClusterNotifier {
       rethrow;
     } finally {
       state = state.copyWith(isClustering: false);
+    }
+  }
+
+  Future<void> nameCluster(int clusterId, String name) async {
+    try {
+      final service = await ref.read(faceClusterServiceProvider.future);
+      await service.nameCluster(clusterId, name);
+      await loadClusters();
+    } catch (error, stackTrace) {
+      AppLogger.faces(
+        'failed to name face cluster $clusterId',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> deleteCluster(int clusterId) async {
+    try {
+      final service = await ref.read(faceClusterServiceProvider.future);
+      await service.deleteCluster(clusterId);
+      ref.invalidate(faceClusterCoverPhotoIdProvider(clusterId));
+      ref.invalidate(faceClusterPhotoIdsProvider(clusterId));
+      await loadClusters();
+    } catch (error, stackTrace) {
+      AppLogger.faces(
+        'failed to delete face cluster $clusterId',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      rethrow;
     }
   }
 }

@@ -18,6 +18,9 @@ class FaceClusterService {
   // User assigns a name to a cluster.
   Future<void> nameCluster(int clusterId, String name);
 
+  // User removes an incorrect cluster. Faces return to the unclustered pool.
+  Future<void> deleteCluster(int clusterId);
+
   // Assign a new face to the nearest existing cluster (or create new).
   Future<void> assignNewFace(int faceId, List<double> embedding);
 }
@@ -101,7 +104,20 @@ class FaceClusterNotifier extends _$FaceClusterNotifier {
 
   Future<void> loadClusters() async { /* query DB, update state */ }
   Future<void> runClustering() async { /* call service, update state */ }
+  Future<void> nameCluster(int clusterId, String name) async { /* call service, reload */ }
+  Future<void> deleteCluster(int clusterId) async { /* call service, reload */ }
 }
+```
+
+Read-only family providers expose photo-manager asset IDs without adding fields to
+the schema-backed `FaceCluster` model:
+
+```dart
+@riverpod
+Future<String?> faceClusterCoverPhotoId(Ref ref, int clusterId);
+
+@riverpod
+Future<List<String>> faceClusterPhotoIds(Ref ref, int clusterId);
 ```
 
 ---

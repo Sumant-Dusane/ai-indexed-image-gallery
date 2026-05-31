@@ -115,6 +115,20 @@ class FaceClusterService {
     ]);
   }
 
+  Future<void> deleteCluster(int clusterId) async {
+    _db.execute('BEGIN IMMEDIATE');
+    try {
+      _db.execute('UPDATE faces SET cluster_id = NULL WHERE cluster_id = ?', [
+        clusterId,
+      ]);
+      _db.execute('DELETE FROM clusters WHERE id = ?', [clusterId]);
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
+
   Future<void> assignNewFace(int faceId, List<double> embedding) async {
     final clusterId = await compute(_nearestCluster, {
       'clustered': _clusteredEmbeddingRows(),

@@ -174,7 +174,8 @@ Layout:
 - Shows the cover face photo (circular, 80px diameter)
 - Text field: "Enter name" placeholder
 - "Save" button — calls `faceClusterService.nameCluster(id, name)`
-- "Not a person / Remove" link — sets cluster name to null, hides from People screen
+- "Delete cluster" link — deletes the cluster after confirmation
+- Saving an empty name sets the cluster name to null; it remains visible as "Who is this?"
 
 ---
 
