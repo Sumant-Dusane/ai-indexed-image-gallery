@@ -79,6 +79,9 @@ Trigger full re-clustering when noise face count exceeds 50.
 
 ## FaceClusterProvider state
 
+State model: `lib/features/people/domain/face_cluster_state.dart`
+Provider: `lib/core/providers/face_cluster_provider.dart`
+
 ```dart
 @freezed
 class FaceClusterState with _$FaceClusterState {
