@@ -4,6 +4,7 @@ import 'package:ai_gallery/features/debug_probe/utils/constants.dart';
 import 'package:ai_gallery/features/gallery/gallery_screen.dart';
 import 'package:ai_gallery/features/gallery/photo_detail_screen.dart';
 import 'package:ai_gallery/features/onboarding/indexing_progress_screen.dart';
+import 'package:ai_gallery/features/onboarding/onboarding_screen.dart';
 import 'package:ai_gallery/features/people/cluster_detail_screen.dart';
 import 'package:ai_gallery/features/people/people_screen.dart';
 import 'package:ai_gallery/features/permission/permission_denied_screen.dart';
@@ -13,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 part 'app_router.g.dart';
 
@@ -20,7 +22,7 @@ part 'app_router.g.dart';
 GoRouter appRouter(Ref ref) {
   final router = GoRouter(
     initialLocation: '/',
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final permissionAsync = ref.read(photoPermissionProvider);
 
       // Permission not yet resolved — let the current route stand.
@@ -29,13 +31,25 @@ GoRouter appRouter(Ref ref) {
       final permission = permissionAsync.value!;
       final isDenied = !permission.isGranted;
       final onDeniedPage = state.matchedLocation == '/permission-denied';
+      final onOnboardingPage = state.matchedLocation == '/onboarding';
 
       if (isDenied && !onDeniedPage) return '/permission-denied';
-      if (!isDenied && onDeniedPage) return '/';
+      if (isDenied) return null;
+
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingComplete = prefs.getBool('onboarding_complete') ?? false;
+
+      if (!onboardingComplete && !onOnboardingPage) return '/onboarding';
+      if (onboardingComplete && onOnboardingPage) return '/';
+      if (onDeniedPage) return onboardingComplete ? '/' : '/onboarding';
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/onboarding',
+        builder: (_, __) => const OnboardingScreen(),
+      ),
       GoRoute(
         path: '/permission-denied',
         builder: (_, __) => const PermissionDeniedScreen(),

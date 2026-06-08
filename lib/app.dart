@@ -23,16 +23,44 @@ class App extends ConsumerWidget {
 
 ThemeData _lightTheme() {
   return ThemeData(
-    brightness: Brightness.light,
     useMaterial3: true,
-    colorSchemeSeed: Colors.blue,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: Brightness.light,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.white,
+      foregroundColor: Colors.black,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Colors.white,
+      selectedItemColor: Colors.blue,
+      unselectedItemColor: Colors.grey,
+      type: BottomNavigationBarType.fixed,
+    ),
   );
 }
 
 ThemeData _darkTheme() {
   return ThemeData(
-    brightness: Brightness.dark,
     useMaterial3: true,
-    colorSchemeSeed: Colors.blue,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: Colors.blue,
+      brightness: Brightness.dark,
+    ),
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.black,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      surfaceTintColor: Colors.transparent,
+    ),
+    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+      backgroundColor: Colors.black,
+      selectedItemColor: Colors.blue,
+      unselectedItemColor: Colors.grey,
+      type: BottomNavigationBarType.fixed,
+    ),
   );
 }
