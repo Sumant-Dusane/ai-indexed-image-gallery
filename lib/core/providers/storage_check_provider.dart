@@ -4,6 +4,7 @@ import 'package:ai_gallery/core/providers/database_provider.dart';
 import 'package:ai_gallery/core/providers/photo_permission_provider.dart';
 import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
+import 'package:ai_gallery/features/debug_probe/utils/constants.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -32,12 +33,18 @@ Future<StorageCheckResult> storageCheck(Ref ref) async {
   final totalAssets = await PhotoRepository().getAssetCount();
   final alreadyIndexed = PhotosDbRepository(db).countIndexed();
   final unindexed = (totalAssets - alreadyIndexed).clamp(0, totalAssets);
-  final requiredBytes = unindexed * _bytesPerPhoto;
+  final estimateCount = kDebugLimitedIndexingEnabled
+      ? unindexed.clamp(0, kDebugIndexLimit)
+      : unindexed;
+  final requiredBytes = estimateCount * _bytesPerPhoto;
+  final debugLimitLabel = kDebugLimitedIndexingEnabled
+      ? 'debug limit: $kDebugIndexLimit, '
+      : '';
 
   AppLogger.indexing(
     'storage check — free: ${freeBytes >> 20}MB, '
     'unindexed: $unindexed ($totalAssets total, $alreadyIndexed indexed), '
-    'required: ${(requiredBytes / (1024 * 1024)).ceil()}MB',
+    '${debugLimitLabel}required: ${(requiredBytes / (1024 * 1024)).ceil()}MB',
   );
 
   return (

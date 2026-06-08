@@ -10,6 +10,7 @@ import 'package:ai_gallery/core/platform/native_channel_client.dart';
 import 'package:ai_gallery/core/providers/indexing_service_provider.dart';
 import 'package:ai_gallery/core/repositories/photo_repository.dart';
 import 'package:ai_gallery/core/repositories/photos_db_repository.dart';
+import 'package:ai_gallery/features/debug_probe/utils/constants.dart';
 import 'package:ai_gallery/services/image_pipeline.dart';
 import 'package:flutter/services.dart' show MethodCall, MethodChannel;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -128,12 +129,17 @@ class IndexingService {
     _throttlePoller?.cancel();
     _throttlePoller = null;
 
+    final unindexedQueue = _photosDb.queryUnindexedQueue();
+    final queuedAssets = kDebugLimitedIndexingEnabled
+        ? unindexedQueue.take(kDebugIndexLimit)
+        : unindexedQueue;
     _queue
       ..clear()
-      ..addAll(_photosDb.queryUnindexedQueue());
+      ..addAll(queuedAssets);
 
     AppLogger.indexing(
-      'startIndexing — ${_queue.length} unindexed assets queued',
+      'startIndexing — ${_queue.length} unindexed assets queued'
+      '${kDebugLimitedIndexingEnabled ? ' (debug limit $kDebugIndexLimit)' : ''}',
     );
     _refreshCounts();
     _updateState(_state.copyWith(isRunning: true));

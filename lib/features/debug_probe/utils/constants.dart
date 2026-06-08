@@ -3,4 +3,10 @@ const bool kDebugProbeEnabled = bool.fromEnvironment(
   defaultValue: false,
 );
 
-const bool kSyncEnabled = !kDebugProbeEnabled;
+const int kDebugIndexLimit = kDebugProbeEnabled
+    ? int.fromEnvironment('DEBUG_INDEX_LIMIT', defaultValue: 0)
+    : 0;
+
+const bool kDebugLimitedIndexingEnabled = kDebugIndexLimit > 0;
+
+const bool kSyncEnabled = !kDebugProbeEnabled || kDebugLimitedIndexingEnabled;
