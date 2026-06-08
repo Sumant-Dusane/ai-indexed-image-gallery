@@ -7,6 +7,7 @@ class FaceClusterService {
   FaceClusterService({required Database db}) : _db = db;
 
   static const _epsilon = 0.4;
+  static const _minPts = 3;
 
   final Database _db;
 
@@ -16,6 +17,10 @@ class FaceClusterService {
       FROM face_embeddings fe
       JOIN faces f ON fe.face_id = f.id
     ''');
+    if (rows.length < _minPts) {
+      _clearClusters();
+      return;
+    }
     final clusters = await compute(_runDbscan, [
       for (final row in rows)
         {
@@ -72,6 +77,12 @@ class FaceClusterService {
       JOIN faces f ON fe.face_id = f.id
       WHERE f.cluster_id IS NULL
     ''');
+    if (unassignedRows.isEmpty) return;
+    if (centroidRows.isEmpty) {
+      await _reclusterIfNoiseThresholdExceeded();
+      return;
+    }
+
     final assignments = await compute(_assignToNearestCentroids, {
       'clustered': centroidRows,
       'unassigned': [
@@ -130,8 +141,13 @@ class FaceClusterService {
   }
 
   Future<void> assignNewFace(int faceId, List<double> embedding) async {
+    final clusteredRows = _clusteredEmbeddingRows();
+    if (clusteredRows.isEmpty) {
+      await _reclusterIfNoiseThresholdExceeded();
+      return;
+    }
     final clusterId = await compute(_nearestCluster, {
-      'clustered': _clusteredEmbeddingRows(),
+      'clustered': clusteredRows,
       'embedding': embedding,
     });
     if (clusterId != null) {
@@ -204,6 +220,18 @@ class FaceClusterService {
       statement.close();
     }
   }
+
+  void _clearClusters() {
+    _db.execute('BEGIN IMMEDIATE');
+    try {
+      _db.execute('UPDATE faces SET cluster_id = NULL');
+      _db.execute('DELETE FROM clusters');
+      _db.execute('COMMIT');
+    } catch (_) {
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+  }
 }
 
 int? _bestExistingCluster(
@@ -226,7 +254,6 @@ int? _bestExistingCluster(
 }
 
 List<Map<String, Object>> _runDbscan(List<Map<String, Object>> rows) {
-  const minPts = 3;
   final points = [
     for (final row in rows)
       (
@@ -256,7 +283,7 @@ List<Map<String, Object>> _runDbscan(List<Map<String, Object>> rows) {
     if (visited[point]) continue;
     visited[point] = true;
     final neighbours = neighboursOf(point);
-    if (neighbours.length < minPts) {
+    if (neighbours.length < FaceClusterService._minPts) {
       labels[point] = -2;
       continue;
     }
@@ -269,7 +296,7 @@ List<Map<String, Object>> _runDbscan(List<Map<String, Object>> rows) {
       if (!visited[neighbour]) {
         visited[neighbour] = true;
         final expanded = neighboursOf(neighbour);
-        if (expanded.length >= minPts) {
+        if (expanded.length >= FaceClusterService._minPts) {
           for (final candidate in expanded) {
             if (queued.add(candidate)) queue.add(candidate);
           }

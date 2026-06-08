@@ -62,6 +62,7 @@ class IndexingService {
   final PhotoRepository _photos;
   final NativeChannelClient _native;
   final void Function(IndexingState) _onStateUpdate;
+  final Future<void> Function()? _onIndexingComplete;
   final MethodChannel _bgChannel = const MethodChannel(_backgroundChannel);
 
   bool _isRunning = false;
@@ -85,11 +86,13 @@ class IndexingService {
     required PhotoRepository photos,
     required NativeChannelClient native,
     required void Function(IndexingState) onStateUpdate,
+    Future<void> Function()? onIndexingComplete,
   }) : _photosDb = photosDb,
        _pipeline = pipeline,
        _photos = photos,
        _native = native,
-       _onStateUpdate = onStateUpdate;
+       _onStateUpdate = onStateUpdate,
+       _onIndexingComplete = onIndexingComplete;
 
   /// Loads all known assets into the photos table (no inference).
   ///
@@ -146,7 +149,7 @@ class IndexingService {
     if (scheduleBackgroundTask) {
       await _registerBackgroundTask();
     }
-    final drain = _drainQueue();
+    final drain = _drainQueue(runCompletionHook: _queue.isNotEmpty);
     _drainFuture = drain;
     try {
       await drain;
@@ -295,7 +298,7 @@ class IndexingService {
     }
   }
 
-  Future<void> _drainQueue() async {
+  Future<void> _drainQueue({required bool runCompletionHook}) async {
     while (_queue.isNotEmpty && !_paused) {
       if (await _shouldPauseForThrottle()) {
         pause();
@@ -312,6 +315,23 @@ class IndexingService {
       _isRunning = false;
       _updateState(_state.copyWith(isRunning: false, currentPhotoId: null));
       AppLogger.indexing('queue drained — indexing complete');
+      if (runCompletionHook) {
+        await _runCompletionHook();
+      }
+    }
+  }
+
+  Future<void> _runCompletionHook() async {
+    final hook = _onIndexingComplete;
+    if (hook == null) return;
+    try {
+      await hook();
+    } catch (e, st) {
+      AppLogger.indexing(
+        'post-indexing completion hook failed',
+        error: e,
+        stackTrace: st,
+      );
     }
   }
 
