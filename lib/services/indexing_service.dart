@@ -67,8 +67,11 @@ class IndexingService {
   bool _paused = false;
   bool _observerRegistered = false;
   bool _workmanagerInitialized = false;
+  int _interactivePauseCount = 0;
+  bool _resumeAfterInteractivePause = false;
   final ListQueue<String> _queue = ListQueue();
   IndexingState _state = const IndexingState();
+  Future<void>? _drainFuture;
   Timer? _throttlePoller;
   Set<String> _knownAssetIds = <String>{};
 
@@ -115,7 +118,11 @@ class IndexingService {
   Future<void> startIndexing() => _startIndexing(scheduleBackgroundTask: true);
 
   Future<void> _startIndexing({required bool scheduleBackgroundTask}) async {
-    if (_isRunning) return;
+    if (scheduleBackgroundTask && _interactivePauseCount > 0) {
+      _resumeAfterInteractivePause = true;
+      return;
+    }
+    if (_isRunning || _drainFuture != null) return;
     _isRunning = true;
     _paused = false;
     _throttlePoller?.cancel();
@@ -133,12 +140,51 @@ class IndexingService {
     if (scheduleBackgroundTask) {
       await _registerBackgroundTask();
     }
-    await _drainQueue();
+    final drain = _drainQueue();
+    _drainFuture = drain;
+    try {
+      await drain;
+    } finally {
+      if (identical(_drainFuture, drain)) {
+        _drainFuture = null;
+      }
+      if (!_paused && !_isRunning && _queue.isNotEmpty) {
+        unawaited(startIndexing());
+      }
+    }
   }
 
-  void pause() {
+  void pause() => _pause(resumeAfterInteractiveUse: false);
+
+  void pauseForInteractiveUse() {
+    _interactivePauseCount++;
+    if (_interactivePauseCount > 1 || !_isRunning) return;
+    _pause(resumeAfterInteractiveUse: true);
+  }
+
+  void resumeAfterInteractiveUse() {
+    if (_interactivePauseCount == 0) return;
+    _interactivePauseCount--;
+    if (_interactivePauseCount > 0 || !_resumeAfterInteractivePause) return;
+
+    _resumeAfterInteractivePause = false;
+    _paused = false;
+    if (_drainFuture != null) {
+      _isRunning = true;
+      _updateState(_state.copyWith(isRunning: true));
+    } else {
+      unawaited(startIndexing());
+    }
+  }
+
+  void _pause({required bool resumeAfterInteractiveUse}) {
     _paused = true;
     _isRunning = false;
+    if (resumeAfterInteractiveUse) {
+      _resumeAfterInteractivePause = true;
+    } else {
+      _resumeAfterInteractivePause = false;
+    }
     _updateState(_state.copyWith(isRunning: false, currentPhotoId: null));
   }
 

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:ai_gallery/core/providers/face_cluster_provider.dart';
 import 'package:ai_gallery/features/people/name_face_sheet.dart';
+import 'package:ai_gallery/router/route_names.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -115,6 +116,8 @@ class _PhotoCell extends StatefulWidget {
 
 class _PhotoCellState extends State<_PhotoCell> {
   late Future<Uint8List?> _thumbnail;
+  AssetEntity? _asset;
+  Uint8List? _thumbnailData;
 
   @override
   void initState() {
@@ -126,19 +129,37 @@ class _PhotoCellState extends State<_PhotoCell> {
   void didUpdateWidget(covariant _PhotoCell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.photoId != widget.photoId) {
+      _asset = null;
+      _thumbnailData = null;
       _thumbnail = _loadThumbnail();
     }
   }
 
   Future<Uint8List?> _loadThumbnail() async {
-    final asset = await AssetEntity.fromId(widget.photoId);
-    return asset?.thumbnailDataWithSize(const ThumbnailSize(200, 200));
+    final photoId = widget.photoId;
+    final asset = await AssetEntity.fromId(photoId);
+    if (photoId != widget.photoId) return null;
+    _asset = asset;
+    final thumbnail = await asset?.thumbnailDataWithSize(
+      const ThumbnailSize(200, 200),
+    );
+    if (photoId == widget.photoId) {
+      _thumbnailData = thumbnail;
+    }
+    return thumbnail;
   }
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.push('/photo/${widget.photoId}'),
+      onTap: () => context.pushNamed(
+        photoDetailRouteName,
+        pathParameters: {'photoId': widget.photoId},
+        extra: switch (_asset) {
+          final asset? => (asset: asset, thumbnail: _thumbnailData),
+          null => null,
+        },
+      ),
       child: Hero(
         tag: 'photo_${widget.photoId}',
         child: FutureBuilder<Uint8List?>(

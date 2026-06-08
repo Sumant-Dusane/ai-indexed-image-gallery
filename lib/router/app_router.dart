@@ -3,10 +3,12 @@ import 'package:ai_gallery/features/debug_probe/presentation/debug_probe_screen.
 import 'package:ai_gallery/features/debug_probe/utils/constants.dart';
 import 'package:ai_gallery/features/gallery/gallery_screen.dart';
 import 'package:ai_gallery/features/gallery/photo_detail_screen.dart';
+import 'package:ai_gallery/features/onboarding/indexing_progress_screen.dart';
 import 'package:ai_gallery/features/people/cluster_detail_screen.dart';
 import 'package:ai_gallery/features/people/people_screen.dart';
 import 'package:ai_gallery/features/permission/permission_denied_screen.dart';
 import 'package:ai_gallery/features/search/search_screen.dart';
+import 'package:ai_gallery/router/route_names.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -76,9 +78,24 @@ GoRouter appRouter(Ref ref) {
         ],
       ),
       GoRoute(
+        name: photoDetailRouteName,
         path: '/photo/:photoId',
-        builder: (_, state) =>
-            PhotoDetailScreen(photoId: state.pathParameters['photoId']!),
+        pageBuilder: (_, state) {
+          final extra = state.extra;
+          final detailExtra = extra is PhotoDetailRouteExtra ? extra : null;
+          return NoTransitionPage<void>(
+            key: state.pageKey,
+            child: PhotoDetailScreen(
+              photoId: state.pathParameters['photoId']!,
+              initialAsset: detailExtra?.asset,
+              initialThumbnail: detailExtra?.thumbnail,
+            ),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/indexing-progress',
+        builder: (_, __) => const IndexingProgressScreen(),
       ),
       GoRoute(
         path: '/people/:clusterId',

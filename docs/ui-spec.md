@@ -61,13 +61,20 @@ Behaviour:
 Component: `lib/features/gallery/gallery_screen.dart`
 
 Layout:
-- `CustomScrollView` with `SliverAppBar` (pinned, title "Library")
-- Search bar row below app bar title — tapping navigates to /search
-- `SliverList` of month sections, each containing a `SliverGrid`
+- Reverse `CustomScrollView`, matching iOS Photos: newest photos anchored at the bottom
+- Transparent black-to-clear top overlay with a subtle background fade, title "Library", visible month + year subtitle, and search icon
+- Search icon at the top right — tapping navigates to /search
+- One continuous `SliverGrid`; do not visually break the grid into month sections
 - Grid: 3 columns, 2px gap between cells, square cells
-- Section header: month + year in iOS Photos style ("September 2024"), 13px semibold, left-padded 16px
+- Overlay subtitle: update the visible month + year as scrolling crosses into a different calendar month
 - Thumbnails: `photo_manager` `ThumbnailData`, `BoxFit.cover`
-- Tap thumbnail: `Hero` animation → PhotoDetailScreen
+- Tap photo thumbnail: navigate to PhotoDetailScreen using the shared
+  `photo_${photo.id}` `Hero` tag. The detail route temporarily uses
+  `NoTransitionPage` while photo loading is tuned, so the Hero handoff is
+  immediate rather than animated.
+- Video thumbnails: show duration at bottom right. Use `HH:MM:SS` when the
+  duration is at least one hour; otherwise use `MM:SS`. Tapping a video
+  thumbnail is temporarily disabled until video playback is implemented.
 
 Behaviour:
 - Group photos by calendar month (taken_at)
@@ -122,7 +129,16 @@ Component: `lib/features/gallery/photo_detail_screen.dart`
 Layout:
 - Full screen black background
 - `InteractiveViewer` with pinch-to-zoom on the image
-- `Hero` tag: `photo_${photo.id}`
+- `Hero` tag: `photo_${photo.id}`. The detail route temporarily uses
+  `NoTransitionPage`, so the Hero handoff is immediate rather than animated.
+- Render the grid thumbnail immediately. After the first frame, request a
+  display-sized thumbnail from `photo_manager`. Only request the full-resolution
+  file when the user starts a zoom gesture. Keep all preview stages in a stable
+  detail-frame size derived from the asset aspect ratio so resolution upgrades
+  do not change the image geometry.
+- Defer detail metadata queries until after the first frame.
+- Pause foreground indexing while PhotoDetailScreen is open and resume it when
+  the screen closes.
 - Top bar: back button (white), share button, favourite button (match iOS icons)
 - Bottom info sheet (always visible, 80px collapsed):
   Swipe up to expand to full info

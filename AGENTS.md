@@ -20,6 +20,7 @@ Only read docs listed for the current phase — do not preemptively read all doc
 | File path | When to read |
 |---|---|
 | `docs/stack.md` | **Every session** — locked tech decisions |
+| `docs/playbook.md` | Phase roadmap; Phase 7 isolate-backed background indexing architecture |
 | `docs/skeleton.md` | Phase 1 — app foundation, init sequence, file list |
 | `docs/schema.md` | Any DB work, indexing, search |
 | `docs/models.md` | Any inference work |

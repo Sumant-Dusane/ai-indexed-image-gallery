@@ -18,6 +18,11 @@ class IndexingService {
   // Pause. Persists queue position. Resumes from same point on next startIndexing().
   void pause();
 
+  // Pause foreground indexing while an interactive photo detail view is open.
+  // Nested calls are reference-counted. Resume only when the final view closes.
+  void pauseForInteractiveUse();
+  void resumeAfterInteractiveUse();
+
   // Called by photo library change observer — queues new assets immediately.
   Future<void> onAssetsAdded(List<String> assetIds);
 
@@ -71,6 +76,11 @@ ref.listen(photoPermissionProvider, (_, next) {
 Both underlying calls are safe to repeat:
 - `syncPhotoLibrary()` uses INSERT OR IGNORE
 - `startIndexing()` has an `isRunning` guard
+
+Foreground indexing pauses while PhotoDetailScreen is open so photo-manager
+full-resolution requests do not compete with interactive display loading.
+Already-running work in the current batch is allowed to finish; no new batch is
+dequeued until the final detail screen closes.
 
 ---
 
