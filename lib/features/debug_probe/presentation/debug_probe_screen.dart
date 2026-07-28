@@ -331,7 +331,7 @@ class _StepList extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             '${elapsed.inMilliseconds} ms',
-            style: TextStyle(fontSize: 11, color: color.withOpacity(0.7)),
+            style: TextStyle(fontSize: 11, color: color.withValues(alpha: 0.7)),
           ),
         ],
       ),

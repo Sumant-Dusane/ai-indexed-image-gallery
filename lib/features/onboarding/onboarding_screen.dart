@@ -111,6 +111,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 onPressed: _completeAndOpenGallery,
                 child: const Text('Skip for now'),
               ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.go('/'),
+                child: const Text('Open gallery'),
+              ),
             ],
           ),
         ),

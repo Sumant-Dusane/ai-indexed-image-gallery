@@ -41,7 +41,6 @@ GoRouter appRouter(Ref ref) {
 
       if (!onboardingComplete && !onOnboardingPage) return '/onboarding';
       if (onboardingComplete && onOnboardingPage) return '/';
-      if (onDeniedPage) return onboardingComplete ? '/' : '/onboarding';
 
       return null;
     },

@@ -406,7 +406,7 @@ class IndexingService {
 
       final decoded = await _photos.decodeToRgb(result.bytes);
       AppLogger.indexing(
-        'indexing $assetId (${decoded.width}×${decoded.height})',
+        'indexing $assetId (${decoded.width}x${decoded.height})',
       );
       await _pipeline.run(
         assetId: assetId,
